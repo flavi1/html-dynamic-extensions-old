@@ -1,0 +1,1101 @@
+
+<?xml version="1.0" encoding="utf-8"?><!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" dsv="0.1" xml:lang="fr" lang="fr" dir="ltr">
+  <head>
+    
+    <link rel="icon" href="favicon.svg" />
+	<title>DRAFT</title>
+	<link href="style.css" rel="stylesheet" />
+		
+<!-- Include Handlebars from a CDN -->
+<script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js"></script>
+		
+
+  </head>
+  <body>
+
+<span style="position: absolute; top: 0; right: 0; text-align: right; padding: 5px; font-style: italic;">Monday, March 07, 2023,<br />Guillon Flavien</span>
+
+
+<h1>Declarative Dynamic Extensions to HTML</h1>
+
+	  <p style="    background: bisque;
+    font-weight: bold;
+    color: orangered;
+    padding: 5px;
+    border: solid;">
+		Warning : Today (03/2023) dde2html is absolutely not an adopted W3C standard. W3C <strong style="font-style: italic;">MAY</strong> or <strong style="font-style: italic;">MAY NOT</strong> adopt it in the future. Now, it's just an individual project.
+	  And note that if it's not approved by W3C it may be renamed, and I will maybe have to migrate this project...</p>
+
+
+<p>In this document, "Declarative Dynamic Extensions to HTML" will be written "dde2html".</p>
+
+
+	  
+<script><![CDATA[
+<!-- Ok. here we need JS to fix the lack of SVG viewBox auto sizing feature. See : https://www.w3.org/Graphics/SVG/WG/wiki/Intrinsic_Sizing -->
+<!-- JS fix from : https://typeofnan.dev/how-to-perfectly-fit-an-svg-to-its-contents-using-javascript/ -->
+function fixSVG(dom) {
+
+	dom.querySelectorAll('svg[viewBox="auto"]').forEach(function(svg) {
+		
+		console.log(svg);
+		const { xMin, xMax, yMin, yMax } = [...svg.children].reduce((acc, el) => {
+		  const { x, y, width, height } = el.getBBox();
+		  if (!acc.xMin || x < acc.xMin) acc.xMin = x;
+		  if (!acc.xMax || x + width > acc.xMax) acc.xMax = x + width;
+		  if (!acc.yMin || y < acc.yMin) acc.yMin = y;
+		  if (!acc.yMax || y + height > acc.yMax) acc.yMax = y + height;
+		  return acc;
+		}, {});
+
+		const viewbox = `${xMin} ${yMin} ${xMax - xMin} ${yMax - yMin}`;
+
+		svg.setAttribute("viewBox", viewbox);		
+	})
+
+}
+]]></script>
+
+
+
+
+	<h1>Introduction</h1>
+	
+	<p>Since many years, html5 introduced various features exclusively designed to be used with javascript. 
+	(ex : template element, open/close dialog element, editablecontent attribute, web components)<br />
+	Some years earlier, the unobtrusive javascript was a well known recommandation.<br />
+	During the great fashion of web 2.0, all attention was given to interactivity. And it was a moment rich in innovations.
+	But the unobtrusive javascript recommandation became no longer even a vague memory.</p>
+	
+	<p>dde2html aims to drastically reduce the javascript dependance.</p>
+	
+	<h2>Declaration</h2>
+	<p>An html document that implements the Declarative Dynamic Extensions have to be declared like this :</p>
+	<pre class="xml">&lt;!DOCTYPE html&gt;
+&lt;html xmlns=&quot;http://www.w3.org/1999/xhtml&quot; dsv=&quot;0.1&quot;&gt;
+	&lt;head&gt;&lt;/head&gt;
+	&lt;body&gt;Hello World&lt;/body&gt;
+&lt;/html&gt;</pre>
+	
+	<p>Note the <code>dsv</code> attribute for "design system version", which indicate to the user agent that dde2html have to be loaded.</p>
+	
+	<h2>eXtensibility</h2>
+	
+	<p>As we said, the problem is that custom elements requires javascript to work.
+	dde2html aims to provide another alternative based on shadow dom, but linked to an XML Namespace.
+	</p>
+	
+	<p>First point, unlike html5 custom elements, dde2html is not providing a way to register new elements. On the contrary, the approach
+	is to allow designers to deeply modify the default appearance of existing
+	standards elements (span, div...). This is called the design layer (see below). A template engine is used to produce shawdowdom of elements (handlebars).
+	Attributes and styles applied to an element can be considered as variables settings, and can be used
+	to provide a designed specific representation (so designs are interchangeables, because the targeted objects are standard elements).<br />
+	The design elements representations are provided in a declarative way (the XDSS files, for XML Design System Sheets).</p>
+	
+	<p>Second point, when you associate a prefix to an XML namespace on the html root element, you make the associated elements
+	fetchable by the desing stack.
+	With dde2html if you define prefix:xmlns="https://example.com/namespace", the related elements ("&lt;prefix-element /&gt;")
+	will be fetchable by the design system which will define how user agent have to write the shadowdom.
+	Lightdom of these elements can be considered as the data descriptor (the xml content itself), and the shadowdom will be generated
+	using XDSS files to provide an html (sub) representation.
+	A specific implementation can be provided by user agent or a javascript library to bring some behaviors to these elements (using the part attribute in shadow dom).
+	This implementation should be defined in a dedicated specification.
+	By this way, you can, for example, considere an implementation for XForms technology.</p>
+	
+	
+	<p>Note that you are still allowed to use classical "&lt;prefix:element /&gt;", but you should prefer write them inside the design layer.
+	This is to resolve the XML syntax and html syntax incompatibilities.</p>
+
+	<p>Moreover, dde2html provide some dynamic features to reduce again javascript dependancy, and a new way to retrieve datas inspired from XForms spec. (model / instance elements)</p>
+
+	<h2>Template engine : Why handlebars?</h2>
+	
+	<p>The main dde2html point of view is that it is better to add a template engine to html than accept unobstrusive javascript behaviors.</p>
+	<p>Handlebars is a logic less template engine ported to all major programmation language.</p>
+	<p>Its logicless property make it a good candidate to be integrated in a descriptor language like html.
+	And the fact it is ported to many language make handlebars a kind of neutral template engine.</p>
+	<p>As a limitation all template and script elements will be escaped from the result of a template output,
+	because a descriptive language like html have to be easily readable and must not become a programming
+	language by itself. (But you will be able to use "onload" or others "onevent" attributes)</p>
+	<p>If you don't know handlebars, just take a look to see how it is quick and easy to learn : <a href="https://handlebarsjs.com/guide/">https://handlebarsjs.com/guide/</a>.</p>
+	
+	<ul>
+		<li>JS (client browser + server nodeJS) : https://handlebarsjs.com/</li>
+		<li>RUST : https://github.com/sunng87/handlebars-rust</li>
+		<li>C : https://github.com/jbboehr/handlebars.c (this one can be used in linux/BSD/MacOS scripts shells !)</li>
+		<li>PHP : https://github.com/zordius/lightncandy</li>
+		<li>PYTHON: https://github.com/wbond/pybars3</li>
+		<li>JAVA : https://github.com/jknack/handlebars.java</li>
+		<li>RUBY : https://github.com/cowboyd/handlebars.rb</li>
+		<li>OBJECTIVE C : https://github.com/Bertrand/handlebars-objc</li>
+		<li>SCALA : https://github.com/mwunsch/handlebars.scala</li>
+		<li>.NET : https://github.com/Handlebars-Net/Handlebars.Net</li>
+		<li>... Probably others ...</li>
+	</ul>
+	
+	<p>Moreover, since handlebars is available in many languages, implementation in web browser should be relatively easy.</p>
+	
+	<p>Now, let's see how is defined the design layer.</p>
+	  
+	<h1>The Design Stack (XDSS) : Auto-generated shadowdom for all standards html elements (global scope)</h1>
+	<p>
+	dde2html use xml and xmlns as a custom elements replacement and to decrease semantic problems by adding a layer between CSS and html.
+	</p>
+	<p>In older versions of html/xhtml the separation of concerns was divided in two parts. Describing (html/xhtml), and styling (CSS, style element, style attribute)</p>
+	<p>dde2html consist in adding another part. The Design part. All kind of wrappers used to provide a specific appearance,
+	and all CSS tricks that allow elegant but out of semantic rigor are not removed, but moved on the design layer.
+	This will preserve the html surface from non-semantic invasions (like .red-button class names) and give a dedicated space to
+	any kind of presentations engines. On top of that, design and styles reusability will be considerably facilitated.
+	</p>
+	<p>
+	When you write html/xhtml you should never choose to use a specific tag element because of its appearance but because of its meaning.
+	xhmlt7 aims to effectively separate the two, once for all.
+	</p>
+		
+		<h3>Exemples : adding presentation possibilities to existing elements without having to pollute the semantic layer (with class names, non-semantics wrappers...).</h3>
+			<h4>Adding --curved-text style property sensitivity on all span elements.</h4>
+			<script><![CDATA[
+			customElements.define('r-span',
+			  class extends HTMLElement {
+				constructor() {
+				  super();
+				  const shadowRoot = this.attachShadow({mode: 'open'})
+				  //this.updateElement();
+				  this.addEventListener('DOMSubtreeModified', function() {
+					  this.updateElement();
+				  });
+			  }
+			  
+			connectedCallback() {
+			  console.log('connectedCallback()');
+			  this.updateElement();
+			}
+			
+			updateElement() {
+			
+				const template = Handlebars.compile(`{{#if computedStyles.--curved-text}}
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink= "http://www.w3.org/1999/xlink" data-auto-view-box="#box" height="{{computedStyles.font-size}}">
+		<defs>
+			<path id="CircleType_cw"
+				d="M 20, 210 a 190,190 0 1,0 380,0 a 190,190 0 1,0 -380,0 a 190,190 0 1,0 380,0 a 190,190 0 1,0 -380,0"></path>
+			<path id="CircleType_ccw"
+				d="M 20, 210 a 190,190 0 1,1 380,0 a 190,190 0 1,1 -380,0 a 190,190 0 1,1 380,0 a 190,190 0 1,1 -380,0"></path>
+		</defs>
+		<g>
+			<text style="font-size: {{computedStyles.--curved-text}}px; text-anchor: middle; white-space: pre;">
+				<textPath id="box" dominant-baseline="middle" startOffset="62.5%" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#CircleType_ccw">{{textContent}}</textPath>
+			</text>
+		</g>
+</svg>
+{{else}}
+{{{innerHTML}}}
+{{/if}}`);
+				
+				
+				var styles = {}, _styles = getComputedStyle(this);	// TODO : parse XDSS definition
+				
+				
+				styles['--curved-text'] = _styles.getPropertyValue('--curved-text')
+				styles['font-size'] = _styles.getPropertyValue('font-size')
+				
+					
+				
+console.log(styles)
+				this.shadowRoot.innerHTML = template({
+					'computedStyles' : styles,
+					'textContent' : this.textContent,
+					'innerHTML' : this.innerHTML,
+				})
+
+/* FIX */
+const svg = this.shadowRoot.querySelector('svg[data-auto-view-box]');
+if(svg) {
+	var children = (svg.getAttribute('data-auto-view-box')) ? svg.querySelectorAll(svg.getAttribute('data-auto-view-box')) : [];
+	if(!children.length)
+		children = svg.children
+	console.log(children)
+	const { xMin, xMax, yMin, yMax } = [...children].reduce((acc, el) => {
+	  const { x, y, width, height } = el.getBBox();
+	  if (!acc.xMin || x < acc.xMin) acc.xMin = x;
+	  if (!acc.xMax || x + width > acc.xMax) acc.xMax = x + width;
+	  if (!acc.yMin || y < acc.yMin) acc.yMin = y;
+	  if (!acc.yMax || y + height > acc.yMax) acc.yMax = y + height;
+	  return acc;
+	}, {});
+
+	const viewbox = `${xMin} ${yMin} ${xMax - xMin} ${yMax - yMin}`;
+	console.log(viewbox)
+	svg.setAttribute('viewBox', viewbox);
+}
+					
+				}
+			  }
+			);
+				
+			]]></script>
+			
+			<p>Considering an XML Design System Sheet.</p>
+			<p>In the template, the <code>{{#if}}</code> condition will detect if the <code>--curved-text</code>
+			style property is applied on the element, and then an SVG will rendrer element's text content in a curved path.</p>
+			
+			<pre class="xml">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;
+&lt;design xmlns=&quot;https://www.w3.org/ns/design-system&quot; for=&quot;http://www.w3.org/1999/xhtml&quot;&gt;
+	&lt;element tagname=&quot;span&quot;&gt;
+		&lt;description&gt;Adding --curved-text style property sensitivity on all span elements.&lt;/description&gt;
+		&lt;style-sensitivity&gt;
+			&lt;!-- property name=&quot;--custom-prop&quot; default=&quot;1.2em&quot;/ --&gt;
+			&lt;property name=&quot;font-size&quot;/&gt;
+			&lt;property name=&quot;--curved-text&quot; /&gt;
+		&lt;/style-sensitivity&gt;
+		&lt;template type=&quot;text/x-handlebars&quot;&gt;&lt;![CDATA[{{#if computedStyles.--curved-text}}
+&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; xmlns:xlink= &quot;http://www.w3.org/1999/xlink&quot; data-auto-view-box=&quot;#box&quot; height=&quot;{{computedStyles.font-size}}&quot;&gt;
+		&lt;defs&gt;
+			&lt;path id=&quot;CircleType_cw&quot;
+				d=&quot;M 20, 210 a 190,190 0 1,0 380,0 a 190,190 0 1,0 -380,0 a 190,190 0 1,0 380,0 a 190,190 0 1,0 -380,0&quot;&gt;&lt;/path&gt;
+			&lt;path id=&quot;CircleType_ccw&quot;
+				d=&quot;M 20, 210 a 190,190 0 1,1 380,0 a 190,190 0 1,1 -380,0 a 190,190 0 1,1 380,0 a 190,190 0 1,1 -380,0&quot;&gt;&lt;/path&gt;
+		&lt;/defs&gt;
+		&lt;g&gt;
+			&lt;text style=&quot;font-size: {{computedStyles.--curved-text}}px; text-anchor: middle; white-space: pre;&quot;&gt;
+				&lt;textPath id=&quot;box&quot; dominant-baseline=&quot;middle&quot; startOffset=&quot;62.5%&quot; xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xlink:href=&quot;#CircleType_ccw&quot;&gt;{{textContent}}&lt;/textPath&gt;
+			&lt;/text&gt;
+		&lt;/g&gt;
+&lt;/svg&gt;
+{{else}}
+{{{innerHTML}}}
+{{/if}}]]&gt;&lt;/template&gt;
+	&lt;/element&gt;
+&lt;/design&gt;
+</pre>
+			
+			<p>Some html code</p>
+			
+			<pre class="xml">&lt;p&gt;Un exemple avec &lt;span &gt;texte &lt;strong&gt;pas incurvé&lt;/strong&gt;&lt;/span&gt; dans ma phrase.&lt;/p&gt;
+&lt;p&gt;Un exemple avec &lt;span style=&quot;--curved-text:40;&quot;&gt;texte &lt;strong&gt;incurvé&lt;/strong&gt;&lt;/span&gt; dans ma phrase.&lt;/p&gt;
+&lt;h1 style=&quot;--curved-text:30;&quot;&gt;Un exemple avec &lt;span&gt;texte &lt;strong&gt;incurvé&lt;/strong&gt;&lt;/span&gt; dans un titre.&lt;/h1&gt;
+</pre>
+			
+			<p>Result</p>
+			
+			<div class="result"><p>Un exemple avec <r-span >texte <strong>pas incurvé</strong></r-span> dans ma phrase.</p>
+<p>Un exemple avec <r-span style="--curved-text:40;">texte <strong>incurvé</strong></r-span> dans ma phrase.</p>
+<h1 style="--curved-text:30;">Un exemple avec <r-span>texte <strong>incurvé</strong></r-span> dans un titre.</h1>
+</div>
+	
+
+	<h1>Dynamic elements defined in the page. (specific scope)</h1>
+	
+	<h2>The <code>hook</code> attribute and <code>&lt;a target="_hooks" /&gt;</code></h2>
+	
+		
+	<p>Considering a document</p>
+	
+	<pre class="xml">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;
+&lt;!DOCTYPE html&gt;
+&lt;html dsv=&quot;0.1&quot; xmlns=&quot;http://www.w3.org/1999/xhtml&quot; xml:lang=&quot;fr&quot; lang=&quot;fr&quot; dir=&quot;ltr&quot;&quot;&gt;
+  &lt;head&gt;
+  
+	&lt;link rel=&quot;icon&quot; href=&quot;favicon.svg&quot; /&gt;
+	&lt;link href=&quot;global.css&quot; rel=&quot;stylesheet&quot; /&gt;
+	&lt;script src=&quot;global.js&quot;&gt;&lt;/script&gt;	
+	
+    &lt;asset hook=&quot;head-page-specific&quot;&gt;
+    
+		&lt;title&gt;MY PAGE&lt;/title&gt;
+		&lt;link href=&quot;my_page.css&quot; rel=&quot;stylesheet&quot; /&gt;
+		&lt;script src=&quot;a_script.js&quot;&gt;&lt;/script&gt;
+		
+    &lt;/asset&gt;
+    
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;div id=&quot;page&quot;&gt;
+        &lt;header hook=&quot;page-header&quot;&gt; LOGO AND PAGE TITLE HERE &lt;/header&gt;
+        &lt;div id=&quot;page-body&quot;&gt;
+            &lt;div hook=&quot;before-main&quot;&gt;
+				LEFT COLUMN
+			&lt;/div&gt;
+            &lt;main hook=&quot;main&quot;&gt;
+				Some content with a link : &lt;a href=&quot;link.php&quot; target=&quot;_hooks&quot;&gt;my link&lt;/a&gt;
+            &lt;/main&gt;
+            &lt;div hook=&quot;after-main&quot;&gt;
+				RIGHT COLUMN
+            &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;footer hook=&quot;page-footer&quot;&gt; FOOTER &lt;/footer&gt;
+    &lt;/div&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</pre>
+	
+	<p>See the link</p>
+	
+	<pre class="xml">&lt;a href=&quot;link.php&quot; target=&quot;_hooks&quot;&gt;my link&lt;/a&gt;</pre>
+	
+	<p>The target attribute with the "_hooks" value will indicate to the user agent that the elements provided by the response will be arranged in their respective hook,
+	without having to refresh enterly the page.</p>
+	<p>Let's take a look on the reponse</p>
+	
+	<pre class="xml">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;
+&lt;hooks&gt;
+	&lt;header hook=&quot;page-header&quot;&gt; SUPER PAGE &lt;/header&gt;
+	&lt;div hook=&quot;before-main&quot;&gt;
+		NEW LEFT COLUMN
+	&lt;/div&gt;
+	&lt;main class=&quot;specific-main-content&quot; hook=&quot;main&quot;&gt;
+		Come back to &lt;a href=&quot;index.php&quot; target=&quot;_hooks&quot;&gt;HOME&lt;/a&gt;
+	&lt;/main&gt;
+	&lt;footer hook=&quot;page-footer&quot;&gt; NEW FOOTER &lt;/footer&gt;
+&lt;/hooks&gt;</pre>
+	
+	<p>Updated page :</p>
+	
+	<pre class="xml">&lt;body&gt;
+    &lt;div id=&quot;page&quot;&gt;
+        &lt;header hook=&quot;page-header&quot;&gt; SUPER PAGE &lt;/header&gt;
+        &lt;div id=&quot;page-body&quot;&gt;
+            &lt;div hook=&quot;before-main&quot;&gt;
+				NEW LEFT COLUMN
+			&lt;/div&gt;
+            &lt;main hook=&quot;main&quot;&gt;
+				Come back to &lt;a href=&quot;index.php&quot; target=&quot;_hooks&quot;&gt;HOME&lt;/a&gt;
+            &lt;/main&gt;
+            &lt;div hook=&quot;after-main&quot;&gt;
+				RIGHT COLUMN
+            &lt;/div&gt;
+        &lt;/div&gt;
+        &lt;footer hook=&quot;page-footer&quot;&gt; NEW FOOTER &lt;/footer&gt;
+    &lt;/div&gt;
+&lt;/body&gt;</pre>
+	
+	<p>Note that the "page-footer" is not provided by the response, so it will not be modified.</p>
+	<p>The main element is a little special. <pre>hook="main"</pre> is not needed on it (neither in the document nor in the response).</p>
+	
+	<p>In the head section, the asset element is a (new) html element that allow us to group some ressources declarations.</p>
+	<p>This new element is hook sensitive. This means we can dynamically load some CSS and JS just by clicking on links.</p>
+	
+	<p>Tip : you can add a div before the body closing tag to allow pages to dynamically perform various JS initializations.</p>
+
+
+	<hr />
+
+	<h2>Auto-generated lightdom 1/2 : the template element and the renderby attribute</h2>
+
+	
+	<p>Html5 introduced the template element. You can use it in various contexts, like adding lines in a table.</p>
+	<p>dde2html will reuse this element. But now you can choose between :</p>
+	
+	<pre class="xml">&lt;template id=&quot;user_tpl&quot;&gt;
+	&lt;tr&gt;
+		&lt;td&gt;&lt;slot name=&quot;firstname&quot; /&gt;&lt;/td&gt;
+		&lt;td&gt;&lt;slot name=&quot;lastname&quot; /&gt;&lt;/td&gt;
+		&lt;td&gt;&lt;slot name=&quot;email&quot; /&gt;&lt;/td&gt;
+	&lt;/tr&gt;
+&lt;/template&gt;</pre>
+	
+	<p>And :</p>
+	
+	<pre class="xml">&lt;template id=&quot;user_tpl&quot; type=&quot;x-handlebars&quot;&gt;
+	&lt;tr&gt;
+		&lt;td&gt;{{firstname}}&lt;/td&gt;
+		&lt;td&gt;{{lastname}}&lt;/td&gt;
+		&lt;td&gt;{{email}}&lt;/td&gt;
+	&lt;/tr&gt;
+&lt;/template&gt;</pre>
+	
+	
+	<p>Since dde2html provide the model/instance mechanism, you will be able to use it without javascript to render lightdom of some elements by adding the <code>renderby</code> attribute on them (see below)</p>
+	<p>This will allow you to factorize your pages, and, icing on the cake, same templates will be usable from both client side and server side.
+	Which offers a bunch of benefits.</p>
+	
+	<div class="trigger">
+		<h3>The <code>t</code> element (trigger) used to render a template in a dialog modal element</h3>
+		
+		<p>The <code>t</code> element, and its optionnal child, the <code>actions</code> element, are used to perform a lot of differents actions</p>
+		
+		<p>This is directly inspired from the XForms trigger element, but notice that there is absolutely no XEvent in the dde2html implementation.</p>
+		<p>(If enabled, javascript will stay the privileged way to manage events behaviors)</p>
+		
+		<p>Here, a first specific use case of the <code>t</code> element using a template to render a dialog modal lightdom.</p>
+		
+		<pre class="xml">&lt;t&gt;Prepare And Open Modal
+	&lt;actions&gt;
+		&lt;render by=&quot;my_tpl&quot;&gt;
+			&lt;firstname&gt;John&lt;/firstname&gt;
+			&lt;lastname&gt;Doe&lt;/lastname&gt;
+		&lt;/render&gt;
+	&lt;/actions&gt;
+&lt;/t&gt;</pre>
+
+		<p>Related template :</p>
+
+		<pre class="xml">&lt;template id=&quot;my_tpl&quot; for=&quot;dialog_id&quot; type=&quot;text/x-handlebars&quot;&gt;&lt;![CDATA[
+	Hello {{firstname}} {{lastname}} !
+]]&gt;&lt;/template&gt;</pre>
+
+		<p>Result :</p>
+
+		<pre class="result">&lt;dialog for=&quot;dialog_id&quot;&gt;
+	Hello John Doe !
+&lt;/dialog&gt;</pre>
+
+		<p>The <code>for</code> attribute is optionnal. If there is no related modal dialog defined,
+		a temporary dialog element will be created, opended, but it will be removed when it will be closed.</p>
+	</div>
+	<h2>Auto-generated lightdom 2/2 : interactions between a model instance and a node element.</h2>
+	
+	
+	<p>
+	dde2html aims to decrease javascript requirements by implementing dynamic elements (ref, group-ref, and each-item attributes)
+	</p>
+	<p>(Directly inspired from XForms spec.)</p>
+	
+	<p>In dde2html, there is no form element, nor name attributes. All datas are stored in an instance, wich is declared in a <code>model</code>.</p>
+	<p>This allow us to have multiple representation of the same data, and multiple controls to modify the same data value.</p>
+	<p>If one data value is changed, all related node in the page will be instantly updated.</p>
+	<p>A model is an element used to group instances, to define data constraints and to define how and where to perform instance submissions.</p>
+	<p>A model have to be placed in the document <code>head</code> section. Example :</p>
+	
+	<pre class="xml">&lt;model&gt;
+	&lt;instance&gt;
+		&lt;datas xmlns=&quot;&quot;&gt;
+			&lt;name&gt;Anonymous&lt;/name&gt;
+			&lt;biography/&gt;
+			&lt;birth/&gt;
+			&lt;death/&gt;
+			&lt;lifetime/&gt;
+		&lt;/datas&gt;
+	&lt;/instance&gt;
+	&lt;bind nodeset=&quot;death&quot; constraint=&quot;. &amp;gt;= ../birth&quot;/&gt;
+	&lt;bind ref=&quot;lifetime&quot; readonly=&quot;true()&quot; calculate=&quot;../death - ../birth&quot;/&gt;
+	&lt;submission id=&quot;to_fr_domain&quot; action=&quot;http://exemple.fr/histoire&quot;
+               method=&quot;post&quot;/&gt;
+	&lt;submission id=&quot;to_org_domain&quot; action=&quot;http://exemple.org/history&quot;
+               method=&quot;post&quot;/&gt;
+&lt;/model&gt;</pre>
+	
+	<p>In this example, the model instance define a datas set to retrieve historical persons biographies.</p>
+	
+	<p>The first <code>bind</code> element add a constraint on the <code>death</code> value : it have to be greater than the born value.</p>
+	<p>The second <code>bind</code> element define the lifetime value as readonly, and set it to (death - birth) by the calculate attribute.</p>
+	
+	<p>Two <code>submission</code> elements are defined. One to send datas to example.fr domain, Another to send datas to example.com domain.</p>
+	<p>Just note for later that we will be able to perform the two or more submissions in one click because of <code>t</code> element and its actions child set.</p>
+	
+	<p>If you want more details on bind and submission elements, please refer to the XForms spec. dde2html will be compatible with its model/instance feature.</p>
+
+	
+		<h3>The <code>ref</code> attribute</h3>
+		<p>Ref attribute is used to bind an element directly to a setted value. Example</p>
+		
+				
+		<p>A model instance is defined in the document's head.</p>
+		
+		<pre class="xml">&lt;model&gt;
+   &lt;instance&gt;&lt;datas xmlns=&quot;&quot;&gt;
+		&lt;var&gt;my_value&lt;/var&gt;
+   &lt;/datas&gt;&lt;/instance&gt;
+&lt;/model&gt;</pre>
+		
+		<p>A span is bind to a node of the instance.</p>
+		
+		<pre class="xml">&lt;span ref=&quot;var&quot; /&gt;</pre>
+		
+		<p>Result : span lightdom will (when ref attribute is inserting on the span, or when node value is changed) be automatically changed to :</p>
+		
+		<pre class="result">&lt;span ref=&quot;var&quot;&gt;my_value&lt;/span&gt;</pre>
+	
+		<div class="renderby">
+			If you need more flexibility, you can use a template :
+			<pre class="xml">&lt;template id=&quot;my_tpl&quot; type=&quot;x-handlebars&quot;&gt;
+	&lt;span&gt;My value :&lt;/span&gt; {{value}}
+&lt;/template&gt;</pre>
+			<p>by adding <code>renderby="my_tpl"</code> attribute on the span element</p>
+		</div>
+		
+			<h3>ref Attribute with <code>itemset</code> child element</h3>
+			<p>Ref attribute is used to bind an element directly to a setted value, and itemset provide corresponding labels to display for each possible value. Example</p>
+		
+				
+		<p>A model instance is defined in the document's head.</p>
+		
+		<pre class="xml">&lt;model&gt;
+   &lt;instance&gt;&lt;datas xmlns=&quot;&quot;&gt;
+		&lt;var&gt;3&lt;/var&gt;
+   &lt;/datas&gt;&lt;/instance&gt;
+&lt;/model&gt;</pre>
+		
+		<p>A span is bind to a node of the instance. And items are set inner.</p>
+		
+		<pre class="xml">&lt;span ref=&quot;var&quot;&gt;
+	&lt;itemset&gt;
+		&lt;item&gt;
+			&lt;value&gt;1&lt;/value&gt;
+			&lt;label&gt;I disklike&lt;/label&gt;
+		&lt;/item&gt;
+		&lt;item&gt;
+			&lt;value&gt;2&lt;/value&gt;
+			&lt;label&gt;I don't care&lt;/label&gt;
+		&lt;/item&gt;
+		&lt;item&gt;
+			&lt;value&gt;3&lt;/value&gt;
+			&lt;label&gt;I love dde2html&lt;/label&gt;
+		&lt;/item&gt;
+	&lt;/itemset&gt;
+&lt;/span&gt;</pre>
+		
+		<p>Result : span lightdom will be automatically changed to :</p>
+		
+		<pre class="result">I love dde2html</pre>
+		
+		
+		<p>Notice that if a non labeled value is provided, the value will just be display as is.</p>
+		<p>Explanations : initial span content is firstly cached (accessible by Element.initialContent property if JS available).
+		Then, lightdom is generated and the result override the span content.</p>
+		<p>Notice that unlike in XForms, ref attribute will never be used to group elements. We will use the <code>group-ref</code> attribute instead.</p>
+		<p>If the ref attribute is fetching a node that contains other things that just one textNode, it will be considered as html content and placed as is in the lightdom</p>
+		
+		<div class="renderby">
+			If you need more flexibility, you can use a template :
+			<pre class="xml">&lt;template id=&quot;my_tpl&quot; type=&quot;x-handlebars&quot;&gt;
+	&lt;span&gt;My value :&lt;/span&gt;
+	{{#if (lookup itemset value)}}
+		{{lookup itemset value}}
+	{{else}}
+		{{value}}
+	{{/if}}
+&lt;/template&gt;</pre>
+			<p>by adding <code>renderby="my_tpl"</code> attribute on the span element</p>
+		</div>
+		
+		<h3>The group-ref attribute : set the ref attribute context for children.</h3>
+		
+		<p>This attribute can be set on any html elements, like the ref one. Exemple :</p>
+		
+		<pre class="xml">&lt;div group-ref=&quot;person1&quot;&gt;
+	&lt;span ref=&quot;first_name&quot; /&gt;
+	&lt;span ref=&quot;last_name&quot; /&gt;
+	&lt;span ref=&quot;email&quot; /&gt;
+&lt;/div&gt;</pre>
+		
+		<p>will interact with</p>
+		
+		<pre class="xml">&lt;model&gt;
+   &lt;instance&gt;&lt;datas xmlns=&quot;&quot;&gt;
+		&lt;person1&gt;
+			&lt;first_name&gt;John&lt;/first_name&gt;
+			&lt;last_name&gt;Doe&lt;/last_name&gt;
+			&lt;email&gt;john.doe@nowhere.com&lt;/email&gt;
+		&lt;/person1&gt;
+   &lt;/datas&gt;&lt;/instance&gt;
+&lt;/model&gt;</pre>
+
+		<p>Result :</p>
+		
+		<pre class="result">&lt;div group-ref=&quot;person1&quot;&gt;
+	&lt;span ref=&quot;first_name&quot;&gt;John&lt;/span&gt;
+	&lt;span ref=&quot;last_name&quot;&gt;Doe&lt;/span&gt;
+	&lt;span ref=&quot;email&quot;&gt;john.doe@nowhere.com&lt;/span&gt;
+&lt;/div&gt;</pre>
+		
+		<div class="renderby">
+			If you need more flexibility, you can use a template :
+			<pre class="xml">&lt;template id=&quot;my_tpl&quot; type=&quot;x-handlebars&quot;&gt;
+	&lt;span&gt;{{firstname}}&lt;/span&gt;
+	&lt;span&gt;{{lastname}}&lt;/span&gt;
+	&lt;span&gt;{{email}}&lt;/span&gt;
+&lt;/template&gt;</pre>
+			<p>by adding <code>renderby="my_tpl"</code> attribute on the div element</p>
+		</div>
+		
+		<h3>The <code>each-item</code> attribute (retrieving data node set) : the HTML loop.</h3>
+		
+				
+		<p>This attribute is inspired from the <code>repeat</code> XForm element. Considering an instance :</p>
+		
+		<pre class="xml">&lt;model&gt;
+   &lt;instance&gt;&lt;datas xmlns=&quot;&quot;&gt;
+		&lt;fruit&gt;
+			&lt;name&gt;Lemon&lt;/name&gt;
+			&lt;color&gt;Yellow&lt;/color&gt;
+		&lt;/fruit&gt;
+		&lt;fruit&gt;
+			&lt;name&gt;Orange&lt;/name&gt;
+			&lt;color&gt;Orange&lt;/color&gt;
+		&lt;/fruit&gt;
+		&lt;fruit&gt;
+			&lt;name&gt;Banana&lt;/name&gt;
+			&lt;color&gt;Yellow&lt;/color&gt;
+		&lt;/fruit&gt;
+   &lt;/datas&gt;&lt;/instance&gt;
+&lt;/model&gt;</pre>
+		
+		<p>A piece of html code :</p>
+		
+		<pre class="xml">&lt;div id=&quot;fruits&quot; each-item=&quot;fruit&quot; &gt;
+	&lt;strong ref=&quot;name&quot; /&gt;
+	Color : &lt;span ref=&quot;color&quot; /&gt;&lt;br /&gt;
+&lt;/div&gt;</pre>
+		
+		<p>The resulted lightdom :</p>
+		
+		<pre class="result">&lt;div id=&quot;fruits&quot; each-item=&quot;fruit&quot; &gt;
+	&lt;strong ref=&quot;name&quot; at=&quot;0&quot;&gt;Lemon&lt;/strong&gt;
+	Color : &lt;span ref=&quot;color&quot; at=&quot;0&quot;&gt;Yellow&lt;/span&gt;&lt;br /&gt;
+
+	&lt;strong ref=&quot;name&quot; at=&quot;1&quot;&gt;Orange&lt;/strong&gt;
+	Color : &lt;span ref=&quot;color&quot; at=&quot;1&quot;&gt;Orange&lt;/span&gt;&lt;br /&gt;
+
+	&lt;strong ref=&quot;name&quot; at=&quot;2&quot;&gt;Banana&lt;/strong&gt;
+	Color : &lt;span ref=&quot;color&quot; at=&quot;2&quot;&gt;Yellow&lt;/span&gt;&lt;br /&gt;
+&lt;/div&gt;</pre>
+		
+		<p>Explanations : Initial cached content is repeated to generate lightdom for each item.
+			<code>at</code> attribute is automatically added for each concerned (that have a ref attribute) lightdom child.
+		</p>
+		
+		<div class="renderby">
+			If you need more flexibility, you can use a template :
+			<pre class="xml">&lt;template id=&quot;my_tpl&quot; type=&quot;x-handlebars&quot;&gt;
+	&lt;strong&gt;{{name}}&lt;/strong&gt;
+	Color: &lt;span&gt;{{color}}&lt;/span&gt;&lt;br /&gt;
+&lt;/template&gt;</pre>
+			<p>by adding <code>renderby="my_tpl"</code> attribute on the div element</p>
+		</div>
+	
+	<div class="trigger">
+	
+		<p>Insert an item entry in instance with the <code>t</code> element</p>
+		
+		<pre class="xml">&lt;t&gt;Add Entry
+	&lt;actions&gt;
+		&lt;insert nodeset=&quot;todo&quot; position=&quot;after&quot; at=&quot;count(todo)&quot;&gt;
+			&lt;status&gt;unstarted&lt;/status&gt;
+			&lt;task&gt;Buy some fruits&lt;/task&gt;
+			&lt;date&gt;01/01/2023&lt;/date&gt;
+		&lt;/insert&gt;
+	&lt;/actions&gt;
+&lt;/t&gt;</pre>
+
+		<p>Delete an item entry in instance with the <code>t</code> element</p>
+		
+		<pre class="xml">&lt;t action=&quot;delete&quot; nodeset=&quot;todo&quot; at=&quot;3&quot;&gt;Remove Task 3&lt;/t&gt;</pre>
+
+
+		<p>Note, if we are in an "each-item" loop, this will be enough :</p>
+
+		<pre class="xml">&lt;t action=&quot;delete&quot;&gt;Remove Task&lt;/t&gt;</pre>
+
+
+		<p>Because nodeset is already defined by the <code>each-item</code> attribute, and the <code>at</code> attribute will be automatically added for each item.</p>
+
+		<p>To be able to trigger more than one action in one <code>t</code> element, you can write :</p>
+
+		<pre class="xml">&lt;t&gt;Remove task 3 and perform stuff
+	&lt;actions&gt;
+		&lt;delete nodeset=&quot;todo&quot; at=&quot;3&quot; /&gt;
+		&lt;!-- optionnaly other actions --&gt;
+	&lt;/actions&gt;
+&lt;/t&gt;</pre>
+	
+	</div>
+	
+	
+	<h2>The <code>shown</code> attribute</h2>
+	
+	<p>This attribute is inspired from the <code>switch</code> element, and the bind's <code>relevant</code> attribute, from the XForm project.
+	Its value is a boolean XPath attribute to determine if an element must be visible or hidden.</p>
+	<p>An hidden attribute will be added on the element when it must be hidden.
+	Hidden attribute will be removed in other case.</p>
+	<p>This will you allow to hide or show any element on the page depending on other element context.</p>
+	
+	<div class="trigger">
+		
+		<p>A possible use case with the <code>t</code> element to make a dynamic step-by-step form, or a slide show :</p>
+		
+		<pre class="xml">&lt;div shown=&quot;step=1&quot;&gt;
+	First Panel
+	&lt;t set=&quot;step&quot; value=&quot;2&quot;&gt;Next&lt;/t&gt;
+&lt;/div&gt;
+&lt;div shown=&quot;step=2&quot;&gt;
+	Second Panel
+	&lt;t set=&quot;step&quot; value=&quot;1&quot;&gt;Prev&lt;/t&gt;
+	&lt;t set=&quot;step&quot; value=&quot;3&quot;&gt;Next&lt;/t&gt;
+&lt;/div&gt;
+&lt;div shown=&quot;step=3&quot;&gt;
+	Final Panel
+	&lt;t set=&quot;step&quot; value=&quot;2&quot;&gt;Prev&lt;/t&gt;
+&lt;/div&gt;</pre>
+	
+	</div>
+	
+	<h2>Edit instance values with the <code>t</code> element setter action</h2>
+	
+	<div class="trigger">
+		
+		To update a specific value in the instance :
+		
+		<pre class="xml">&lt;t set=&quot;var&quot; value=&quot;0&quot;&gt;Init&lt;/t&gt;</pre>
+
+		To be able to trigger more than one action in one <code>t</code> element, you can write :
+
+		<pre class="xml">&lt;t&gt;Define Limits
+	&lt;actions&gt;
+		&lt;set ref=&quot;min&quot;&gt;0&lt;/set&gt;
+		&lt;set ref=&quot;max&quot;&gt;100&lt;/set&gt;
+		&lt;!-- optionnaly other actions --&gt;
+	&lt;/actions&gt;
+&lt;/t&gt;</pre>
+	
+	
+	</div>
+	
+	<p>Like in XForms , there is another way to modify instance values. It's time to see the editor attribute, the form controls replacement.</p>
+	<hr />
+	
+	<h2>Edtion attributes (editor, bind, incremental)</h2>
+	 <h3>the <code>editor</code> attribute</h3>
+	 <p>We said all body's children can have a ref attribute to be binded to an instance specific value.</p>
+	 <p>This allow the dynamic mechanism seen above.</p>
+	 <p>Now, what happens if we want user to be able to edit a value ?</p>
+	 <p>We just have to indicate an adequate editor in the <code>editor</code> attribute in addition of the ref attribute.</p>
+	 <p>Possible editors are : <strong>input, select1, select, textarea, htmlarea, secret(todo), and file(todo)</strong>.</p>
+	 <p>(htmlarea aims to be a <code>contenteditable</code> replacement, but it will not be treated in this document)</p>
+	 <p>input, select1, select and textarea will work in the same way that is defined in the XForm spec.</p>
+	 
+	 
+	 <h4>Example 1 : input editor</h4>
+	 
+			 
+		<p>A model instance is defined in the document's head.</p>
+		
+		<pre class="xml">&lt;model&gt;
+   &lt;instance&gt;&lt;datas xmlns=&quot;&quot;&gt;
+		&lt;var&gt;my_value&lt;/var&gt;
+   &lt;/datas&gt;&lt;/instance&gt;
+&lt;/model&gt;</pre>
+		
+		<p>A span is bind to a node of the instance.</p>
+		
+		<pre class="xml">&lt;span ref=&quot;var&quot; editor=&quot;input&quot; /&gt;</pre>
+
+		<p>The editor will be injected in the span shadowtdom, allowing us to pick the data value :</p>
+		
+		<pre class="result">&lt;editor part=&quot;editor&quot;/&gt;&lt;div part=&quot;output&quot;&gt;&lt;slot /&gt;&lt;/div&gt;</pre>
+		
+		
+		<p>If the XDSS design stack provide a template for span elements, it will be processed, and the result will replace the slot element in the output part of the shadowdom.</p>
+		<p>To harmonize things, all design stuff will be wrapped in a "div part output".</p>
+		<p>The editor element will be automatically set with appropriate value (no need the value attribute)</p>
+		<p>The span will be focusable, and its binding value will be edited through the editor element.</p>
+		<p>The editor element <strong>must never</strong> be used on the document itself.</p>
+		<p>You will never have to directly use this element. It's a reserved internal shadowdom element.</p>
+		<p>Explanation : with dde2html, form controls does not explicitly exists. All body's children can be editable through the editor attribute.</p>
+		<p>Html5 introduced the contenteditable attribute, wich confusedly allow to perform data modification (html content in this case)</p>
+		<p>dde2html resolve it by remove data picker from the body surface, and replace it by the <code>editor</code> attribute, giving us a new and unique consistant way to retrieve datas.</p>
+		<p>Additionnal advantage : with dde2html, html becomes relatively clean of behavioring elements. There is almost only anchors (a), triggers (t), and the editor attribute, on the body surface.</p>
+		<p>Note for later : It will be possible to add or override editors when javascript is enable.</p>
+		
+		<p>The parts (editor and output) lets you catch shadow elements in a style rule. Example :</p>
+		
+		<pre>span:focus::part(output) {display: inline;}</pre>
+		
+		
+		<p>Initialized value and modified value will simply impact the lightdom inner content. Just like that :</p>
+		
+		<pre class="result">&lt;span ref=&quot;var&quot; editor=&quot;input&quot;&gt;my_value&lt;/span&gt;</pre>
+		
+		<p>The element will appear like this :</p>
+		<div>
+			<span><input value="my_value" />my_value</span>
+		</div>
+		
+
+		<p>Note that the <code>input</code> editor type will be automatically retrieved from the type attribute of the bind element from the model if defined.</p>
+		<p>The default type will be "string".</p>
+		
+		
+	<h4>The incremental attribute</h4>
+	
+	<p>The (optionnal) <code>incremental</code> attribute define when the field modification will update the instance.
+	This will occur each time you type a character if setted to "true". This will occur each time you leave the field if not setted or setted to "false".</p>
+		
+	<h4>Example 2 : input editor with a number binded type</h4>
+	
+				
+		<p>A model :</p>
+		<pre class="xml">&lt;model&gt;
+   &lt;instance&gt;&lt;datas xmlns=&quot;&quot;&gt;
+		&lt;var&gt;23&lt;/var&gt;
+   &lt;/datas&gt;&lt;/instance&gt;
+   &lt;bind ref=&quot;var&quot; type=&quot;integer&quot; /&gt;
+&lt;/model&gt;</pre>
+		
+		<p>A piece of html</p>
+		<pre class="xml">&lt;span ref=&quot;var&quot; editor=&quot;input&quot; step=&quot;2&quot; min=&quot;0&quot; max=&quot;100&quot;/&gt;</pre>
+		
+		<p>Will appear like this</p>
+		<div class="result"><button>+</button><input type="text" value="23" /><button>-</button></div>
+		
+		<p>Selector <code>::part(plus-trigger)</code> allow us to style the plus button</p>
+		<p>Selector <code>::part(minus-trigger)</code> allow us to style the minus button</p>
+		<p>Selector <code>::part(characters-picker)</code> allow us to style the text field</p>
+		
+		<p>But the editor will be sensitive with a <code>--number-appearance</code></p>
+		<p>Possible values : simple (like above), range, and knob</p>
+		
+		<p>Will appear like this with style="--number-appearance: range;"</p>
+		<div class="result"><input type="range" value="23" min="0" max="100" /></div>
+		
+		<p>Will appear like this with style="--number-appearance: knob;"</p>
+		<div class="result">
+			<svg style="
+					height: 60px;
+					display: inline-block;
+                    --half-stroke: calc(var(--stroke-width, 1px) / 2);
+			" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+				<style>
+                circle {
+                    r : calc(50% - var(--half-stroke));
+                    cx : 50%;
+                    cy : 50%;
+                    fill: var(--fill-color, #fff);
+                    stroke-width: var(--stoke-width, 1px);
+                    stroke: var(--stroke-color, #000);
+                }
+                #pointer {
+                    stroke-width: var(--stoke-width, 1px);
+                    stroke: var(--stroke-color, #000);
+                    transform-origin: center center;
+                }
+                #value {
+                    user-select: none;
+                }
+				</style>
+                <circle></circle>
+                <line x1="50%" y1="50%" x2="100%" y2="50%" id="pointer" style="transform: rotateZ(-82.8566deg);"></line>
+            </svg>
+		</div>
+		
+		<h4>The Number element</h4>
+		
+		<p>dde2html introduce a <code>number</code> element to perform number representations. Example :</p>
+		<pre class="xml">&lt;number&gt;42.3&lt;/number&gt;</pre>
+		
+		<p>This element accepts min and max attributes and will be sensitive to the <code>--number-apearance</code> style property, exactly like in the previous example.</p>
+		
+	 <h4>Example 3 : select1 editor with itemset</h4>
+	 
+			 
+		<p>A model instance is defined in the document's head.</p>
+		
+		<pre class="xml">&lt;model&gt;
+   &lt;instance&gt;&lt;datas xmlns=&quot;&quot;&gt;
+		&lt;var&gt;3&lt;/var&gt;
+   &lt;/datas&gt;&lt;/instance&gt;
+&lt;/model&gt;</pre>
+		
+		<p>A span is bind to a node of the instance.</p>
+		
+		<pre class="xml">&lt;span ref=&quot;var&quot; editor=&quot;select1&quot;&gt;
+	&lt;itemset&gt;
+		&lt;item&gt;
+			&lt;value&gt;1&lt;/value&gt;
+			&lt;label&gt;I disklike&lt;/label&gt;
+		&lt;/item&gt;
+		&lt;item&gt;
+			&lt;value&gt;2&lt;/value&gt;
+			&lt;label&gt;I don't care&lt;/label&gt;
+		&lt;/item&gt;
+		&lt;item&gt;
+			&lt;value&gt;3&lt;/value&gt;
+			&lt;label&gt;I love dde2html&lt;/label&gt;
+		&lt;/item&gt;
+	&lt;/itemset&gt;
+&lt;/span&gt;</pre>
+	 
+		<p>You will obtain:</p>
+		
+		<span><select>
+<option value="1">I disklike</option>
+<option value="2">I don\'t care</option>
+<option value="3" selected="true">I love dde2html</option>
+		</select>I love dde2html</span>
+		
+		<p class="todo">(todo : a possibility to allow custom value will be added (like this :
+		<a href="https://select2.org/tagging">https://select2.org/tagging</a>), but it will be treated later.)</p>
+		
+	
+	<p>XForms spec provide an <code>appearance</code> attribute for the <code>select1</code> and the <code>select</code> data pickers.</p>
+	<p>In dde2html this attribute will be replaced to the <code>--editor-appearance</code> style property because this is the right and natural place for all kind of appearance settings.</p>
+	
+	<p><code>select1</code> example :</p>
+	
+		
+	<pre class="xml">&lt;span editor=&quot;select1&quot; ref=&quot;color&quot; style=&quot;--editor-appearance: full;&quot;&gt;
+	&lt;itemset&gt;
+		&lt;item&gt;
+			&lt;value&gt;red&lt;/value&gt;
+			&lt;label&gt;Red&lt;/label&gt;
+		&lt;/item&gt;
+		&lt;item&gt;
+			&lt;value&gt;black&lt;/value&gt;
+			&lt;label&gt;Black&lt;/label&gt;
+		&lt;/item&gt;
+	&lt;/itemset&gt;
+&lt;/span&gt;</pre>
+	
+	<p>Result</p>
+	<div class="result"><label><input type="radio" checked="true" />Red</label><br /><label><input type="radio"/>Black</label></div>
+	
+	<p>Result with <code>style="--editor-appearance: compact;"</code></p>
+	<div class="result"><select><option selected="true">Red</option><option>Black</option></select></div>
+	
+	<p>Result with <code>style="--editor-appearance: minimal;"</code></p>
+	<div class="result"><select size="3"><option selected="true">Red</option><option>Black</option></select></div>
+	
+	<p>The <code>select</code> editor is used to allow selection of multiple items.
+	For example, <code>style="--editor-appearance: full;"</code> on it will appear as checkboxes</p>
+	
+	
+	<h4>Note on htmlarea editor</h4>
+	
+	<p>For now the htmlarea editor will temporary fall back to the textarea editor behavior.</p>
+	<p>In the future it will become a contenteditable alternative.</p>
+	<p>Waiting to find a consistant approach to start this part of the spec.</p>
+	<p>Remember that when javascript is enabled you will be able to override existing editors.</p>
+	<p>For example, you can use Quill.js to perform html picking!</p>
+	
+	
+	
+	<h3>Submission</h3>
+	
+	<p>The model/instance elements, inherits from XForms, provide the submission element to define how and where instance datas should be sent (action, method)</p>
+	
+	<div class="trigger">
+		
+		To perform a submission, all you have to do is binding a <code>t</code> element to a submission element from the model.	
+		<pre class="xml">&lt;t sendby=&quot;submission_id&quot;&gt;Send&lt;/t&gt;</pre>
+
+		<p>To be able to trigger more than one action in one <code>t</code> element, you can write :</p>
+
+		<pre class="xml">&lt;t&gt;Send and Perform Stuff
+	&lt;actions&gt;
+		&lt;send by=&quot;submission_id&quot; /&gt;
+		&lt;!-- optionnaly other actions --&gt;
+	&lt;/actions&gt;
+&lt;/t&gt;</pre>
+
+	</div>
+	
+	<h3>Reset instance values</h3>
+	
+	<div class="trigger">
+		To recover initial instance values :
+
+		<pre class="xml">&lt;t action=&quot;reset&quot;&gt;Reset&lt;/t&gt;</pre>
+
+
+		To be able to trigger more than one action in one <code>t</code> element, you can write :
+
+		<pre class="xml">&lt;t&gt;Perform
+			&lt;actions&gt;
+				&lt;reset nodeset=&quot;todo&quot; at=&quot;3&quot; /&gt;
+				&lt;!-- other actions --&gt;
+			&lt;/actions&gt;
+		&lt;/t&gt;</pre>
+
+		Note, if nodeset and at attributes are setted, just the corresponding item entry will be reseting to its initial values.
+	</div>
+	
+	<h2>Instance and websockets</h2>
+	
+	
+	<p>Like in XForms, instances can be feed by an url</p>
+	
+	<pre class="xml">&lt;model&gt;
+	&lt;instance src=&quot;countries.xml&quot; /&gt;
+&lt;/model&gt;</pre>
+	
+	<p>In addition, you can interact with web sokets.</p>
+	
+	<pre class="xml">&lt;model&gt;
+	&lt;instance src=&quot;ws://example.com/chatroom&quot; /&gt;
+&lt;/model&gt;</pre>
+	
+	<p>All updated value from the instance will be sent to the soket, and all new received will be added to the page. If the web soket becomes unreachable,
+	all associated form controls (with ref element)
+	will be temporarly in readonly state.</p>
+	
+	<p>Errors logs will be displayed in the console. If JS is available, it can be used to retrieve errors (events will be triggered).</p>
+	
+	<p class="todo">(todo : describe error management with and without javascript : bind errors, server errors after submiision, server errors during websocket connection.)</p>
+	
+	
+	<h1>Conclusion</h1>
+
+	<h2>dde2html for designer</h2>
+	<p>dde2html provide a better separation of concerns to allow more flexible design and integration behaviors without the need of javascript.</p>
+	
+	<p>Moreover, since style properties can be handled by the design layer to affect shadowdom, CSS complexity will be considerably reduced.</p>
+	
+	<h2>dde2html for server side developpers</h2>
+	<p>By implementing handlebars, websokets, and the model / instance elements, dde2html provide some facilities for the server side developpement (data constraints, template reusability...)</p>
+	
+	<h2>dde2html for javascript</h2>
+	<p>As a paradox, by decreasing javascript requirements to resolve a lot of dynamic behaviors, dde2html decrease the needed amount of work for javascript developpers.</p>
+	
+	<p>I take a very long time to write this document and I hope you will appreciate this work.</p>
+	
+	<h2>Annexe</h2>
+	
+	<h3>An additionnal possible use case</h3>
+	<p>Some basic standard helpers will be added to handlebars to perform some minimal logic test from the templates.</p>
+	<p>Possible repository candidate : <a href="https://github.com/helpers/handlebars-helpers">https://github.com/helpers/handlebars-helpers</a></p>
+	<p>For example {{#begin_with var "string"}}.</p>
+	<p>Considering an XDSS :</p>
+	
+
+<pre class="xml">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;
+&lt;design xmlns=&quot;https://www.w3.org/ns/design-system&quot; for=&quot;http://www.w3.org/1999/xhtml&quot;&gt;
+	&lt;element tagname=&quot;video&quot;&gt;
+	&lt;style-sensitivity&gt;
+		&lt;property name=&quot;width&quot; /&gt;
+		&lt;property name=&quot;height&quot; /&gt;
+	&lt;/style-sensitivity&gt;
+		&lt;description&gt;Extends video elements&lt;/description&gt;
+		&lt;template type=&quot;text/x-handlebars&quot;&gt;&lt;![CDATA[
+			{{#if (begin_with attributes.src &quot;https://youtube.com&quot;)}}
+				&lt;object width=&quot;{{style.width}}&quot; height=&quot;{{style.height}}&quot;&gt;
+					&lt;param name=&quot;movie&quot; value=&quot;{{attributes.src}}&quot;&gt;&lt;/param&gt;
+					&lt;param name=&quot;allowFullScreen&quot; value=&quot;true&quot;&gt;&lt;/param&gt;
+				&lt;/object&gt;
+			{{else}}
+				&lt;video src=&quot;{{attributes.src}}&quot; /&gt;
+			{{/if}}
+		]]&gt;&lt;/template&gt;
+	&lt;/element&gt;
+&lt;/design&gt;
+</pre>
+<p>(youtube&#169; is a trade mark.)</p>
+
+<p class="todo">(todo : fix it with correct video tag usage + use this example to explain XDSS design element cascade inheritance)</p>	
+	
+	
+	
+	<h2>TODO</h2>
+
+	
+	
+	<ul>
+		<li>"t" : add an action to close/open dialogs modals.</li>
+		<li>Using bind attribute as ref attribute replacement possibility</li>
+		<li>multiple models / instances</li>
+		<li>Editor stack : js usage : add or override an editor.</li>
+		<li>"t" to sort instance items ?</li>
+		<li>drag/drop handler on each-item lists (only possible if an item == one root element, else send error)</li>
+		<li>Réparer le viewBox="selector" dans les exemples. => this fix adoption may be a temporary recommandation to follow</li>
+		<li>the setting helper to retrieve special variables like 'isJavascriptEnabled'</li>
+    </ul>
+  </body>
+</html>
