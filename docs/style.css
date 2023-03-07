@@ -1,0 +1,86 @@
+html {
+	zoom: 1.1;
+}
+
+.summary {
+    background: lightgoldenrodyellow;
+    border: solid 2px orange;
+    padding: 5px;
+    overflow-y: auto;
+}
+
+pre.xml {
+    background: #d3faff;
+    border: solid 2px #00bcd4;
+    padding: 5px;
+    overflow-y: auto;
+}
+
+.result {
+    background: #d3ffeb;
+    border: solid 2px #00d469;
+    padding: 5px;
+    overflow-y: auto;
+}
+
+r-span {
+	display:inline-block;
+}
+
+
+div.renderby {
+  padding: 10px;
+  background: #fdd387;
+  border: dotted orange;
+  margin-bottom: 20px;
+}
+div.renderby::before {
+  content: "!";
+  display: inline-block;
+  background: yellow;
+  border-radius: 50%;
+  height: 30px;
+  width: 30px;
+  text-align: center;
+  line-height: 30px;
+  font-weight: bold;
+  color: green;
+  font-size: 20px;
+  font-family: monospace;
+  border: solid 3px;
+}
+
+div.trigger {
+    background: #f7f77a;
+    border-radius: 10px;
+    padding: 15px;
+    border: dashed orange;
+    margin-bottom: 20px;
+}
+
+div.trigger::before {
+  content: "☈";
+  display: inline-block;
+  background: yellow;
+  border-radius: 50%;
+  height: 30px;
+  width: 30px;
+  text-align: center;
+  line-height: 30px;
+  font-weight: bold;
+  color: green;
+  font-size: 20px;
+  font-family: monospace;
+  border: solid 3px;
+}
+
+.todo {
+  font-style: italic;
+  font-weight: bold;
+  background: #ffffbd;
+  border-radius: 10px;
+  padding: 5px;
+  color: orange;
+  text-align: center;
+  border: dotted;
+}
