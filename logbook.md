@@ -15,7 +15,6 @@ March 09, 2023,
 Comment posted on whatwg/dom :
 https://github.com/whatwg/dom/issues/831#issuecomment-1462377264
 
-March 10, 2023,
-Published new proposal in whatwg/html github :
-https://github.com/whatwg/html/issues/9003
-(the a target="_hooks" and the asset element)
+March 10, 2023, Published new propositions in whatwg/html github :
+- https://github.com/whatwg/html/issues/9003 (the a target="_hooks" and the asset element)
+- https://github.com/whatwg/html/issues/9004 (handlebars in html)
