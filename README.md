@@ -18,7 +18,7 @@ However it is likely to change (see https://github.com/whatwg/html/issues/2254).
 
 In a first time, we have to temporarly use the XML syntax to avoid these problems. But...
 
-## XML limitation
+## XML limitations
 
 I was hoping to find a way to attach shadow DOM to prefixed:xml_element but it is actually impossible.
 I posted an issue to wathwg/html, but it was rejected (https://github.com/whatwg/html/issues/9013).
@@ -30,12 +30,13 @@ Surprisingly, this fix automatically solves others complex problems related to C
 
 So it's finally an happy accident, and that's why this fix become the prefered way of integrating XML in dde2html documents.
 
-## But, does this means we will use XML syntax without XML syntax?
+## But, does this mean we will use XML syntax without XML syntax?
 Yes, somehow. Since xml:element fallback to xml-element. But the XML syntax gives us the closing tag flexibility. So this is not a problem. Just a translation.
 
-## Ok, but how do the browser will interpret my svg:svg xml elements?
-You're right. Since we don't use the html parser, SVG is not integrated anymore and we have to provide it with a namespace. But it is transformed to svg-svg, so you naturally think that nothing will happen.
-Don't be afraid, the xml-element rewriting does not concern the shadow dom inner content. The design layer will be able to handle this element, and to provide its right representation by putting it in an old school classical xml wrapper!
+## Ok, but how do the browser will interpret my svg:svg xml elements for example?
+You're right to ask for it. Since we don't use the html parser, SVG is not integrated anymore and we have to provide it with a namespace. But it is transformed to svg-svg, so you naturally think that the browser will not render it as expected.
+
+Don't be afraid, the xml-element rewriting does not concern the shadow dom inner contents. The design layer will be able to handle this element, and to provide its right representation by putting it in an old school classical xml wrapper!
 Moreover, for SVG, it will be provided in the default design system asset of dde2html. So it will be transparent for you.
 
 ## Ok, this project aims to be a Custom Elements replacement. But what if I still want to use some custom elements?
