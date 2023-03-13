@@ -55,4 +55,4 @@ This should not make us forget that dde2html should be as compatible as possible
 We have to carrefully avoid possible collisions with html.
 Keep in mind that the goal of this project is to drastically decrease web complexity.
 
-Let's ready to start the proof of concept implementation.
+Let's ready to start developping the proof of concept implementation.
