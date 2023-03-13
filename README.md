@@ -31,7 +31,7 @@ So it's finally an happy accident, and this fix become the prefered way of integ
 ## But, does this means we will use XML syntax without XML syntax?
 Yes, somehow. Since xml:element fallback to xml-element. But the XML syntax gives us the closing tag flexibility. So this is not a problem. Just a translation.
 
-## Hummmm. I'm a little skeptical! How do the browser will interpret my svg:svg xml elements?
+## Ok, but how do the browser will interpret my svg:svg xml elements?
 You're right. Since we don't use the html parser, SVG is not integrated anymore and we have to provide it with a namespace. But it is transformed to svg-svg, so you naturally think that nothing will happene.
 Don't be afraid, the xml-element rewriting does not concern the shadow dom inner content. The design layer will be able to handle this element, and to provide its right representation by putting it in an old school classical xml wrapper!
 Moreover, for SVG, it will be provided in the default design system asset of dde2html. So it will be transparent for you.
