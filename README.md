@@ -25,6 +25,7 @@ I posted an issue to wathwg/html, but it was rejected (https://github.com/whatwg
 
 As a paradox, to avoid this problem, the Declarative Dynamic DOM will transform all prefixed:xml_element to prefixed-xml_element.
 Then, these will be parsed as custom elements (yes, exactly the technology we are hopping to depreciate, we will use it to fix our problems), allowing us to attach a shadow dom on these elements.
+
 Surprisingly, this fix solve other complex problems related to CSS selectors and querySelector from the selectors API. It s very problematic to use xml elements with these technologies (see https://stackoverflow.com/questions/23034283/is-it-possible-to-use-htmls-queryselector-to-select-by-xlink-attribute-in-an#23047888).
 So it's finally an happy accident, and this fix become the prefered way of integrating XML in dde2html documents.
 
