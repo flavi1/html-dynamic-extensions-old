@@ -12,6 +12,7 @@ See (draft) description here : https://flavi1.github.io/html-dynamic-extensions/
 # Proof of Concept
 Let's start here an experimental JS implementation.
 As a paradox, our fully unobstrusive JS dde2html implementation will be written in JS.
+We need first to ensure to not encounter compatibility problems.
 
 ## Syntax problematics
 
