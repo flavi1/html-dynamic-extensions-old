@@ -42,7 +42,7 @@ Moreover, for SVG, it will be provided in the default design system asset of dde
 ### I know that this project aims to be a Custom Elements replacement. But what if I still want to use custom elements?
 When you define your xml namespaces, just ensure that there is no collisions with the custom elements you want to use.
 
-# Conclusion
+## Conclusion : XML Syntax, the way to go.
 I was hoping dde2html to be mergeable to html, but I released this not an imperative at all, and it's not possible for now, probably forever.
 And it's not realistic to try forcing whatwg/html to follow my needs. So ok, I will take another way.
 XML syntax is more constraining than HTML syntax. But the XML syntax is again more flexible than HTML syntax making us happy to use it without having to take care about parser problems. Moreover, we resolve partially the XML syntax complexity by transform xml:elements to xml-elements, and then pushing the xml ns complexity in the design layer.
