@@ -20,7 +20,7 @@ const observer = new MutationObserver((mutationList, observer) => {
            console.log(`Previous value was ${mutation.attributeName}.`);
         break;
     }
-  });
+  })};
 
 // Start observing the target node for configured mutations
-observer.observe(document, { attributes: true, childList: true, subtree: true });
+observer.observe(document, { attributes: true, childList: true, subtree: true });	// + characterData + characterDataOldValue
