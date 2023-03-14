@@ -20,12 +20,15 @@ We need first to ensure to not encounter compatibility problems.
 
 - We need to integrate XML in the head section to allow model instance elements to content XML. Which is likely to break the html parser. ~~A possible later implementation fix is to embed model and instance elements in a script.~~ (not anymore a problem, see bellow)
 
+- Is XPath available in HTML5 ? It seems possible to use it with html, but with problems. It's a breaking point since we need XPath to developp the data layer between model / instance and binded elements.
+
 - Actually, templates tag content are interpreted as html fragment, not as text content (like textarea and script tags does) which is a big limitation.
 However it is likely to change (see https://github.com/whatwg/html/issues/2254). But it will subsit a problem. For browsers that don't support it, we may envisage a way to fallback by ~~using script tags instead of templates tags~~. (not anymore a problem, see bellow)
 
+
 So, we have to considere to use the XML syntax to avoid these problems. But...
 
-### XML limitations
+### XML and its easily fixed limitations
 
 I was hoping to find a way to attach shadow DOM to prefixed:xml_element but it is actually impossible.
 I posted an issue to wathwg/html, but it was rejected (https://github.com/whatwg/html/issues/9013).
