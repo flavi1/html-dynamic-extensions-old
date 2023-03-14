@@ -5,6 +5,66 @@
   <script src="ddxhtml.js" />
   </head>
   <body>
-    <p>Hello World</p>
+    <p id="previousSibling">Hello World</p>
+    <p id="p" ref="init">Hello World2</p>
+		
+	<span ref="var">
+		<itemset>
+			<item>
+				<value>1</value>
+				<label>I disklike</label>
+			</item>
+			<item>
+				<value>2</value>
+				<label>I don't care</label>
+			</item>
+			<item>
+				<value>3</value>
+				<label>I love dde2html</label>
+			</item>
+		</itemset>
+	</span>
+    
+    
+    
+<div group-ref="person1">
+	<span ref="first_name" />
+	<span ref="last_name" />
+	<span ref="email" />
+</div>
+
+<template id="my_tpl" type="x-handlebars">
+	<span>My value :</span> {{value}}
+</template>
+
+<div id="fruits" each-item="fruit" >
+	<strong ref="name" />
+	Color : <span ref="color" /><br />
+</div>
+
+
+
+
+<div shown="step=1">
+	First Panel
+	<t set="step" value="2">Next</t>
+</div>
+<div shown="step=2">
+	Second Panel
+	<t set="step" value="1">Prev</t>
+	<t set="step" value="3">Next</t>
+</div>
+<div shown="step=3">
+	Final Panel
+	<t set="step" value="2">Prev</t>
+</div>
+    
+    <script><![CDATA[
+document.querySelector('link[rel="designsheet"]').remove()
+document.getElementById('p').setAttribute('ref', 'myvar');
+document.getElementById('p').setAttribute('ref', 'myvar2');
+document.getElementById('p').setAttribute('ref', 'myvar3');
+//document.getElementById('p').removeAttribute('ref');
+    ]]></script>
   </body>
 </html>
