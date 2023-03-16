@@ -13,35 +13,37 @@ document.designSheets.add = (url, opt) => {
 			else if(xml.childNodes[0].nodeName == 'design') {
 				document.designSheets.push({
 					url: url,
-					namespace: xml.childNodes[0].getAttribute('for'),
-					XDSSRulesList : xml.childNodes[0].querySelectorAll('rule')
+					XDSSRulesList : xml.childNodes[0].querySelectorAll('template')
 				})
 				document.designSheets.refreshAll();
 			}
 			else
 				throw new Error(url+' is not a valid XDSS file.');
 		})
-		.catch(err => console.error(err));
+		.catch(err => console.error(err.message));
 }
 
 document.designSheets.refreshAll = () => {
 	document.designSheets.forEach((ds) => {
-console.log(ds);
-		if(ds.namespace == document.documentElement.getAttribute('xmlns'))
-			ds.XDSSRulesList.forEach((rule) => {
-console.log(rule)
-				const sel = rule.getAttribute('selector')
-				const stylesToObserve = rule.getAttribute('style-sensitivity').split(",").map(s => s.trim());
-				var template = null;
-				if(rule.querySelector('template').getAttribute('type') == 'text/x-handlebars')
-					template = Handlebars.compile(rule.querySelector('template').textContent)
-				else {/* TODO use default html template engine */}
-				document.querySelectorAll(sel).forEach((el) => {
-console.log(el)
-					el.refreshDesign = () => {
-						CStyles = getComputedStyle(el);
+		ds.XDSSRulesList.forEach((rule) => {
+			const sel = rule.getAttribute('selector')
+			const stylesToObserve = rule.getAttribute('style-sensitivity').split(",").map(s => s.trim());
+			var template = null;
+			if(rule.getAttribute('type') == 'text/x-handlebars')
+				template = Handlebars.compile(rule.textContent)
+			else {/* TODO use default html template engine */}
+			document.querySelectorAll(sel).forEach((el) => {
+				el._lastTplVars = {};
+				el.refreshDesign = (subTree) => {
+					try {
 						if(!el.shadowRoot)
 							el.attachShadow({ mode: "open" })
+					} catch(err) {
+						console.error('Design layer unable to attach shadow DOM on Element', el);
+						console.warn('Please considere to use one of theses tags instead of the ' + el.tagName+' tag.', 'article, aside, blockquote, body, div, footer, h1, h2, h3, h4, h5, h6, header, main, nav, p, section, span'.split(',').map(item => item.trim()));
+					}
+					if(el.shadowRoot) {
+						const CStyles = getComputedStyle(el);
 						var tplVars = {
 							'attributes' : {},
 							'styles' : {},
@@ -52,14 +54,24 @@ console.log(el)
 							tplVars.attributes[a.name] = a.value;
 						for(const s of stylesToObserve)
 							tplVars.styles[s] = CStyles.getPropertyValue(s);
-						el.shadowRoot.innerHTML = template(tplVars);
+						if(el._lastTplVars != tplVars) {
+							const result = template(tplVars).trim();
+							if(el.shadowRoot.innerHTML.trim() != result)
+								el.shadowRoot.innerHTML = result;
+							el._lastTplVars = tplVars;
+						}
 						const event = new Event("refreshDesign");
 						el.dispatchEvent(event);
-						
 					}
-					el.refreshDesign();
-				})
+					if(subTree)
+						el.querySelectorAll('*').forEach((c) => {	// = flattened childNodes
+							if(c.refreshDesign instanceof Function)
+								c.refreshDesign();
+						})
+				}
+				el.refreshDesign();
 			})
+		})
 	})
 	const event = new Event("refreshDesign");
 	document.dispatchEvent(event);
@@ -73,41 +85,80 @@ const nodesCallbacks = {
 		console.log(action + ' designsheet', el)
 		document.designSheets.add(el.getAttribute('href'))
 	},
-	'body *[ref]' : (el, action) => {
-		// TODO : store initialDOM if not already done
-		console.log(action + ' ref', el)
+	'link[rel="stylesheet"]' : (el, action) => {
+		console.log(action + ' stylesheet', el)
+		document.designSheets.refreshAll();
+	},
+	'style' : (el, action) => {
+		console.log(action + ' style', el)
+		document.designSheets.refreshAll();
 	},
 	'body *[group-ref]' : (el, action) => {	// No need to store initialDOM on it. The DDOM will concerns only its [ref] childs
 		console.log(action + ' group-ref ', el)
 	},
-	'body *[each-item]' : (el, action) => {
-		// TODO : store initialDOM if not already done
-		console.log(action + ' each-item ', el)
-	},
-	'body *[render-by]' : (el, action) => {
-		// TODO : store initialDOM if not already done
-		console.log(action + ' render-by ', el)
+	'body *[ref], body *[each-item], body *[render-by]' : (el, action) => {
+		if(!el.initialDOM)
+			el.initialDOM = el.innerHTML;
+		console.log(action + ' dynamic element (ref, each-item, render-by)', el)
 	},
 	'template' : (el, action) => {
 		// TODO : list and refresh all corresponding 'body *[renderby="ID"]'
 		console.log(action + ' template ', el)
 	},
-	'body *[ref] > itemset, t > actions' : (el, action) => {
-		// TODO : store initialDOM if not already done + add/update setting property.
-		console.log(action + ' in-DOM settings ', el)
+	'body *[ref] > itemset, t > actions' : (settingEl, action) => {
+		console.log('innerDOMSettings')
+		
+		// TODO : store initialDOM if not already done
+
+		el = settingEl.parentNode;
+		if(!el.innerDOMSettings)
+			el.innerDOMSettings = {}
+		switch(settingEl.tagName) {
+			case 'itemset':
+				if(!el.innerDOMSettings.itemset)
+					el.innerDOMSettings.itemset = {}
+				settingEl.querySelectorAll('item').forEach((item) => {
+					const v = item.querySelector('value').innerHTML	// TODO : is value should be able to be XML/HTML content ?
+					el.innerDOMSettings.itemset[v] = item.querySelector('label').innerHTML	;	// Naturally, Ok for labels.
+				})
+			break;
+			case 'actions':
+				if(!el.innerDOMSettings.itemset)
+					el.innerDOMSettings.itemset = {}
+				// TODO : prepare settings + addEventListeners.
+			break;
+		}
+		console.log(el.innerDOMSettings)
+
 	},
 }
 
 const attributesChangedCallbacks = {
 	'style' : (el, value) => {
 		console.log('ATTR style changed', el, value)
+		if(el.refreshDesign instanceof Function)
+			el.refrehDesign(true);
+		else
+			el.querySelectorAll('*').forEach((c) => {	// = flattened childNodes
+				if(c.refreshDesign instanceof Function)
+					c.refreshDesign();
+			})
 		
 	},
 	'ref' : (el, value) => {
+		if(!el.initialDOM)
+			el.initialDOM = el.innerHTML;
 		console.log('ATTR ref changed', el, value)
 	},
 	'renderby' : (el, value) => {
+		if(!el.initialDOM)
+			el.initialDOM = el.innerHTML;
 		console.log('ATTR renderby changed', el, value)
+	},
+	'each-item' : (el, value) => {
+		if(!el.initialDOM)
+			el.initialDOM = el.innerHTML;
+		console.log('ATTR each-item changed', el, value)
 	},
 	'shown' : (el, value) => {
 		console.log('ATTR shown changed', el, value)
@@ -137,8 +188,6 @@ const observer = new MutationObserver((mutationList, observer) => {
 		return;
 	var action = '', nodes = [], nodesCB = [], lastAddedNode = null;
 	
-console.log('mutationList', mutationList)
-	
 	mutationList.forEach((mutation) => {
 		switch (mutation.type) {
 		  case "childList":
@@ -164,10 +213,10 @@ console.log('mutationList', mutationList)
 
 			   nodes.forEach(function(el) {
 					Object.keys(nodesCB).forEach(sel => {
-						if(el.nodeType == 3 && el.parentNode && el.parentNode.matches instanceof Function && el.parentNode.matches(sel) && el.parentNode != lastAddedNode) {
+						if(el.nodeType == Node.TEXT_NODE && el.parentNode && el.parentNode.matches instanceof Function && el.parentNode.matches(sel) && el.parentNode != lastAddedNode) {
 							nodesCB[sel](el.parentNode, 'changed', el, action);
 						}
-						else if(el.matches instanceof Function && el.matches(sel))
+						else if(el.nodeType == Node.ELEMENT_NODE && el.matches instanceof Function && el.matches(sel))
 							if(mutation.addedNodes.length) {
 								lastAddedNode = el
 								nodesCB[sel](el, 'add');
@@ -199,10 +248,9 @@ observer.observe(document, {
 	attributeFilter: Object.keys(attributesChangedCallbacks)
 });	// + attributeOldValue + characterData + characterDataOldValue
 
-/*
+
 window.addEventListener('DOMContentLoaded', () => {
 	console.log('window captured by DOMContentLoaded')
-	//initSelectors('link[rel="designsheet"]');
+	initSelectors('body *[ref] > itemset, t > actions');	// fix :/
+	// 'body *[ref], body *[each-item], body *[render-by]' ?
 }, true);
-*/
-
