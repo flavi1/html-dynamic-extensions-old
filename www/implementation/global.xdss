@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<design xmlns="https://www.w3.org/ns/design-system">
+		<template type="text/x-handlebars" selector="span, p.curved" style-sensitivity="font-size, --curved-text"><![CDATA[
+			{{#if styles.--curved-text}}
+			<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink= "http://www.w3.org/1999/xlink" data-auto-viewbox="#box" height="{{styles.font-size}}">
+					<defs>
+						<path id="CircleType_cw"
+							d="M 20, 210 a 190,190 0 1,0 380,0 a 190,190 0 1,0 -380,0 a 190,190 0 1,0 380,0 a 190,190 0 1,0 -380,0"></path>
+						<path id="CircleType_ccw"
+							d="M 20, 210 a 190,190 0 1,1 380,0 a 190,190 0 1,1 -380,0 a 190,190 0 1,1 380,0 a 190,190 0 1,1 -380,0"></path>
+					</defs>
+					<g>
+						<text  style="font-size: {{styles.--curved-text}}px; text-anchor: middle; white-space: pre;">
+							<textPath id="box" dominant-baseline="middle" startOffset="62.5%" xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#CircleType_ccw">{{textContent}}</textPath>
+						</text>
+					</g>
+			</svg>
+			{{else}}
+			{{{innerHTML}}}
+			{{/if}}
+		]]></template>
+</design>
