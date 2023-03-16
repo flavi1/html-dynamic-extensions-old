@@ -2,12 +2,19 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" dsv="0.1">
   <head>
-  <script src="ddxhtml.js" />
-  <link href="global.xdss" rel="designsheet" />
+	<!-- Include Handlebars from a CDN -->
+	<script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js" />
+	<script src="ddxhtml.js" />
+	<link href="global.xdss" rel="designsheet" />
   </head>
   <body>
+	  
+<p class="curved">Un exemple avec <span >texte <strong>pas incurvé</strong></span> dans ma phrase.</p>
+<p>Un exemple avec <span style="--curved-text:40;">texte <strong>incurvé</strong></span> dans ma phrase.</p>
+<h1 style="--curved-text:30;">Un exemple avec <span>texte <strong>incurvé</strong></span> dans un titre.</h1>
+	  
     <p id="previousSibling">Hello World</p>
-    <p id="p" ref="init">Hello World2</p>
+    <p id="p" ref="init" class="curved">Hello World2</p>
 		
 	<span ref="var">
 		<itemset>
@@ -61,11 +68,124 @@
 </div>
     
     <script><![CDATA[
-document.querySelector('link[rel="designsheet"]').remove()
+/*
+//document.querySelector('link[rel="designsheet"]').remove()
 document.getElementById('p').setAttribute('ref', 'myvar');
 document.getElementById('p').setAttribute('ref', 'myvar2');
 document.getElementById('p').setAttribute('ref', 'myvar3');
 //document.getElementById('p').removeAttribute('ref');
+
+document.querySelector('h1').setAttribute('style', '--curved-text:33;');
+*/
+
+
+
+htmlToXML = function(html) {			// TODO add it to global innerHTML setter
+	var doc = document.implementation.createHTMLDocument(), xml = '';
+	doc.body.innerHTML = html;		// let's fix HTML unclosed tags
+	html = doc.body.innerHTML;
+	const voidElements = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
+	const pattern = new RegExp(`<(${voidElements.join('|')})([^>]*?)(?<!/)>`, 'gi');
+	return html.replace(pattern, '<$1$2 />');
+}
+
+
+
+console.log(htmlToXML('<input><br>Hello <p><strong>unclosed tags!'));
+
+document.body.innerHTML += `<span ref="var_test">
+		<itemset>
+			<item>
+				<value>1</value>
+				<label>I disklike</label>
+			</item>
+			<item>
+				<value>2</value>
+				<label>I don't care</label>
+			</item>
+			<item>
+				<value>3</value>
+				<label>I love dde2html</label>
+			</item>
+		</itemset>
+	</span>`
+
+
+document.body.innerHTML += `
+<div group-ref="person1">
+	<span ref="first_name" />
+	<span ref="last_name" />
+	<span ref="email" />
+</div>`;
+
+
+// remove useless xmlns attributes.
+const xhtmlns = 'http://www.w3.org/1999/xhtml'	// TODO test + add it to global innerHTML setter
+document.body.querySelectorAll('*').forEach((el) => {
+	const exclude = '[xmlns]:not([xmlns="'+xhtmlns+'"] *[xmlns])';
+	if(el.matches(exclude))
+		return;	// Or something like that...
+	if(el.getAttribute('xmlns') == xhtmlns) {
+		if(el.namespaceURI != xhtmlns)
+			console.warn('Oops! NS Confusion')
+		else
+			el.removeAttribute('xmlns');	// we don't need it anymore.
+	}
+})
+
+setTimeout( () => { 
+	document.querySelectorAll('[each-item], [ref], [render-by]').forEach( (el) => {
+		if(!el.initialDOM)
+			console.warn('initialDOM not setted', el)
+		else
+			console.log('initialDOM setted', el)
+	})
+ }, 5000 )
+setTimeout( () => { 
+	document.querySelector('h1').setAttribute('style', '--curved-text:50;')
+ }, 1000 )
+setTimeout( () => { 
+	document.querySelector('h1').removeAttribute('style')
+ }, 2000 )
+setTimeout( () => { 
+	document.querySelector('h1').setAttribute('style', '--curved-text:31;')
+ }, 3000 )
+setTimeout( () => { 
+	var newEl = document.createElementNS('http://www.w3.org/1999/xhtml', 'strong')
+	document.body.appendChild(newEl);
+	newEl.innerHTML = 'Hello World!'
+	newEl.setAttribute('ref', 'TeSt');
+	newEl.setAttribute('style', 'color: red;');
+	newEl.innerHTML = 'New Hello World!'
+	
+ }, 4000 )
+
+
+<!-- Ok. here we need JS to fix the lack of SVG viewBox auto sizing feature. See : https://www.w3.org/Graphics/SVG/WG/wiki/Intrinsic_Sizing -->
+<!-- JS fix from : https://typeofnan.dev/how-to-perfectly-fit-an-svg-to-its-contents-using-javascript/ -->
+document.querySelectorAll('span').forEach((el) => {
+	el.addEventListener('refreshDesign', (ev) => {
+		svg = ev.target.shadowRoot.querySelector('svg[data-auto-viewbox]');
+		if(svg) {
+			var el = (svg.getAttribute('data-auto-viewbox')) ? svg.querySelector(svg.getAttribute('data-auto-viewbox')) : null;
+			var bb = el.getBBox();
+			svg.setAttribute('viewBox', bb.x + ' '+ bb.y + ' ' + bb.width + ' ' + bb.height);
+			console.warn(svg.getAttribute('viewBox'))
+		}
+	})
+})
+
     ]]></script>
+    
+    <style>
+		
+    p.curved {
+		--curved-text:40;
+		display: inline-block;
+		padding: 0;
+		margin: 0;
+	}
+    </style>
+    
   </body>
 </html>
