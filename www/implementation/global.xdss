@@ -16,7 +16,7 @@
 					</g>
 			</svg>
 			{{else}}
-			{{{innerHTML}}}
+				<slot />
 			{{/if}}
 		]]></template>
 </design>
