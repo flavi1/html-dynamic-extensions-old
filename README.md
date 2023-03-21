@@ -1,8 +1,13 @@
-IMPLEMENTATION DEMO HERE : (Proof of concept, work in progress)
+### IMPLEMENTATION DEMO HERE : (Proof of concept, work in progress)
+
 https://flavi1.github.io/html-dynamic-extensions/www/implementation/test.xhtml
-SOURCE :
+
+### SOURCE :
+
 https://github.com/flavi1/html-dynamic-extensions/tree/main/www/implementation
-DOCUMENTATION :
+
+### DOCUMENTATION :
+
 https://flavi1.github.io/html-dynamic-extensions/www/
 
 # html-dynamic-extensions
