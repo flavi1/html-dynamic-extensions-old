@@ -1,3 +1,10 @@
+IMPLEMENTATION DEMO HERE : (Proof of concept, work in progress)
+https://flavi1.github.io/html-dynamic-extensions/www/implementation/test.xhtml
+SOURCE :
+https://github.com/flavi1/html-dynamic-extensions/tree/main/www/implementation
+DOCUMENTATION :
+https://flavi1.github.io/html-dynamic-extensions/www/
+
 # html-dynamic-extensions
 Declarative Dynamic Extensions to HTML (dde2html)
 An unobstrusive javascript way using the Design System paradigm to decrease :
