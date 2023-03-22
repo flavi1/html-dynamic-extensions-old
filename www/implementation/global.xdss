@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<design xmlns="https://www.w3.org/ns/design-system">
+<design xmlns="https://www.w3.org/ns/design-system" dsv="0.1">
 		<template type="text/x-handlebars" selector="span, p.curved" style-sensitivity="font-size, --curved-text"><![CDATA[
 			{{#if styles.--curved-text}}
 			<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink= "http://www.w3.org/1999/xlink" data-auto-viewbox="#box" height="{{styles.font-size}}">
