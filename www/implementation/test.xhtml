@@ -40,7 +40,10 @@
 	  
     <p id="previousSibling">Hello World</p>
     <p id="p" ref="init" class="curved">Hello World2</p>
-		
+	
+	<span ref="var" incremental="true" edit-as="string"></span>
+	<span ref="var" edit-as="number"></span>
+	
 	<span ref="var">
 		<itemset>
 			<item>
@@ -157,7 +160,7 @@ setTimeout( () => {
  
  setTimeout( () => { 
 	document.querySelectorAll('[each-item], [ref], [render-by]').forEach( (el) => {
-		if(!el.initialDOM)
+		if(typeof el.initialDOM == 'undefined')
 			console.warn('initialDOM not setted', el)
 		else
 			console.log('initialDOM setted', el)
@@ -169,9 +172,9 @@ setTimeout( () => {
  }, 3500 )
 
 
-
-<!-- Ok. here we need JS to fix the lack of SVG viewBox auto sizing feature. See : https://www.w3.org/Graphics/SVG/WG/wiki/Intrinsic_Sizing -->
-<!-- JS fix from : https://typeofnan.dev/how-to-perfectly-fit-an-svg-to-its-contents-using-javascript/ -->
+/*
+// <!-- Ok. here we need JS to fix the lack of SVG viewBox auto sizing feature. See : https://www.w3.org/Graphics/SVG/WG/wiki/Intrinsic_Sizing -->
+// <!-- JS fix from : https://typeofnan.dev/how-to-perfectly-fit-an-svg-to-its-contents-using-javascript/ -->
 document.querySelectorAll('span').forEach((el) => {
 	el.addEventListener('refreshDesign', (ev) => {
 		svg = ev.target.shadowRoot.querySelector('svg[data-auto-viewbox]');
@@ -183,6 +186,7 @@ document.querySelectorAll('span').forEach((el) => {
 		}
 	})
 })
+*/
 
     ]]></script>
     
@@ -196,9 +200,6 @@ document.querySelectorAll('span').forEach((el) => {
     </style>
     
     TODO : tester https://stackoverflow.com/questions/23468890/svg-path-gives-different-bbox-values-in-chrome-and-firefox
-    
-    
-    
-    
+
   </body>
 </html>
