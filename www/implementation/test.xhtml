@@ -4,6 +4,7 @@
   <head>
 	<!-- Include Handlebars from a CDN -->
 	<script src="https://cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.js" />
+	<script src="NSContraction.js" />
 	<script src="ddxhtml.js" />
 	<link href="global.xdss" rel="designsheet" />
 	
@@ -126,17 +127,19 @@ document.body.innerHTML += `
 	<span ref="email" />
 </div>`;
 
-document.body.innerHTML += `
-<div id="TEST">
-	INNERHTML OK ?<input><p>
-</div>`;
+
+/*
+	document.body.innerHTML += `
+	<div id="TEST">
+		INNERHTML OK ?<input><p>
+	</div>`;
 
 
-setTimeout( () => { 
-	console.log(document.querySelector('#myresult'))
-	document.querySelector('#myresult').innerHTML += '<input><br><p>OK ;)'
- }, 500 )
-
+	setTimeout( () => { 
+		console.log(document.querySelector('#myresult'))
+		document.querySelector('#myresult').innerHTML += '<input><br><p>OK ;)'
+	 }, 500 )
+*/
 
 setTimeout( () => { 
 	document.querySelector('h1').setAttribute('style', '--curved-text:50;')
@@ -162,8 +165,6 @@ setTimeout( () => {
 	document.querySelectorAll('[each-item], [ref], [render-by]').forEach( (el) => {
 		if(typeof el.initialDOM == 'undefined')
 			console.warn('initialDOM not setted', el)
-		else
-			console.log('initialDOM setted', el)
 	})
  }, 3000 )
 
