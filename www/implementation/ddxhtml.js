@@ -14,330 +14,6 @@ const ddxhtmlImplementation = (supportedDesignSystems) => {
 		}
 			
 	}
-	
-// 1. NAMESPACES CONTRACTION
-// =========================
-
-	//if('transitionnal' != 'strict') {}		// TODO : Mode strict / transitionnal ? init options ?...
-
-	const cleanNSRedundancy = (root = document.documentElement) => {
-		root.querySelectorAll('*').forEach((el) => {	// clear unwanted useless xmlns
-			if(el.getAttribute('xmlns') && el.parentElement.closest('[xmlns="' + el.getAttribute('xmlns')+'"]'))
-				el.removeAttribute('xmlns');	// useless
-			if(el.getAttribute('xmlns-0') && el.parentElement.closest('[xmlns-0="' + el.getAttribute('xmlns-0')+'"]'))
-				el.removeAttribute('xmlns-0');	// useless
-			if(el.getAttribute('xmlns-0') && !el.parentElement.closest('[xmlns-0]') && el.getAttribute('xmlns-0') == root.getAttribute('xmlns'))
-				el.removeAttribute('xmlns-0');	// useless
-		})
-	}
-
-	// override setters
-	const nativeInnerHTMLSetter = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML').set;
-
-	Object.defineProperty(Element.prototype, 'innerXML', {
-		get : function() {
-			const cloned = this.cloneNode(true);
-			NSExpansion(cloned.childNodes);
-			return cloned.innerHTML;	// innerHTML getter = native.
-		},
-		set : nativeInnerHTMLSetter,	// innerXML setter = native innerHTML setter
-	})
-
-	Object.defineProperty(Element.prototype, 'innerHTML', {set: function(html) {
-		try {
-			nativeInnerHTMLSetter.call(this, html);
-		} catch(err1) {
-			try {
-				const HTMLToXML = (html) => {
-					const parser = new DOMParser();
-					const doc = parser.parseFromString('<html xmlns="http://www.w3.org/1999/xhtml"><body>'+html+'</body></html>', 'text/html');	// let's fix HTML unclosed tags
-					
-					cleanNSRedundancy(doc.body);
-					html = doc.body.innerHTML;		// innerHTML getter = native.
-					
-					const voidElements = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
-					const pattern = new RegExp(`<(${voidElements.join('|')})([^>]*?)(?<!/)>`, 'gi');
-					return html.replace(pattern, '<$1$2 />');
-				}
-				nativeInnerHTMLSetter.call(this, HTMLToXML(html));
-			} catch(err2) {
-				return console.error(err2)
-			}
-			const msg = 'Valid HTML, but invalid XML. Automatically corrected for compatibility reasons.'
-			var warn = new Error(msg), firstLineStack = false;
-			warn.stack = err1.stack.split("\n");
-			if(warn.stack[0].indexOf(err1.message) !== -1) {
-				firstLineStack = warn.stack[0].replace(err1.message, msg);
-				warn.stack.shift();
-			}
-			warn.stack.shift();	// One more, assuming the error is not inside this setter.
-			if(firstLineStack)
-				warn.stack.unshift(firstLineStack);
-			warn.stack = warn.stack.join("\n")
-			console.warn(warn);		// Chrome & Firefox OK. TODO : TEST OTHERS
-		}
-	}
-	});
-
-	const collectAncestors = (el, includingEl) => {
-			var parents = [];
-			var currentElement = el;
-			while (currentElement.parentElement) {
-				parents.push(currentElement.parentElement);
-				currentElement = currentElement.parentElement;
-			}
-			parents.reverse();
-			if(includingEl)
-				parents.push(el);
-			return parents;
-	}
-
-	const collectNSDefinitions = (el, contracted) => {
-		var collectedNSs = {};
-		for(parent of collectAncestors(el, true))
-			for (const attribute of parent.attributes)
-				if(attribute.nodeName.indexOf('xmlns') === 0){
-					var nn = attribute.nodeName;
-					if(nn == 'xmlns' || nn == 'xmlns-0')
-						collectedNSs[(contracted) ? 'xmlns-0' : 'xmlns'] = attribute.nodeValue;
-					else {
-						var prefix = nn.substring(6);
-						collectedNSs[(contracted) ? 'xmlns-' + prefix : 'xmlns:' + prefix];
-					}
-				}
-		return collectedNSs;
-	}
-
-	const recreateElement = (el, newTagName, avoidAttributesCopy) => {
-		const newtagOuterHTML = '<'+newTagName+'>' + el.innerHTML + '</'+newTagName+'>';
-		const newTagContainer = document.createElement('div')
-		if(newTagName.indexOf(':') > 0)
-			try{
-				newTagContainer.innerXML = newtagOuterHTML		// innerXML setter (= native innerHTML setter)
-			} catch(e) {
-				console.error(e)
-				console.warn(newtagOuterHTML)
-			}
-		else
-			newTagContainer.innerHTML = newtagOuterHTML		// innerXML setter (= native innerHTML setter)
-		const newXML = newTagContainer.getElementsByTagName(newTagName)[0]
-		if(!avoidAttributesCopy)
-			for(const attr of el.attributes)
-				newXML.setAttribute(attr.nodeName, attr.nodeValue)
-		el.parentNode.replaceChild(newXML, el);
-		if(typeof el.initialDOM != 'undefined')
-			newXML.initialDOM = el.initialDOM;
-		return newXML;
-	}
-
-	const NSContraction = (el = document.documentElement) => {
-		cleanNSRedundancy(el)	// TODO : ne fonctionnera peut être pas : xmlns a un statut spécial quand le document est de type XML !!!
-		const contractEl = (el) => {
-			const nn = el.nodeName
-			var attributesNodes = [];
-			for(const attr of el.attributes)
-				attributesNodes.push(attr)
-			if( el.nodeName == 'template' || ![Node.DOCUMENT_TYPE_NODE, Node.DOCUMENT_NODE ].includes(el.parentNode.nodeType) ) {
-			// template elements are likely to not already have a parentNode probably because they are not rendered immediately
-				for(const attr of attributesNodes) {
-					var ann = attr.nodeName;
-					if(ann == 'xmlns')
-						el.setAttribute('xmlns-0' ,attr.nodeValue)
-					else
-						el.setAttribute(ann.replace(':', '-') ,attr.nodeValue)
-					if(ann.indexOf(':') > 0 || ann == 'xmlns')
-						el.removeAttribute(ann)
-				}
-				if(nn.indexOf(':') > 0)
-					el = recreateElement(el, nn.replace(':', '-'))
-			}
-			else {
-				for(const attr of attributesNodes) {	// <html> tag uniquement
-					var ann = attr.nodeName;
-					el.setAttribute(ann.replace('xmlns:', 'xmlns-') ,attr.nodeValue)	// On garde xml:lang par exemple...
-					if(ann.indexOf('xmlns:') === 0)
-						el.removeAttribute(ann)
-				}
-			}
-			return el;
-		}
-		var list = [];
-		el.querySelectorAll('*').forEach((subEl) => {list.push(subEl)})
-		list.reverse().push(el);
-	console.log(list)
-		let iterations = list.length;
-		for(const _el of list)
-			if(!--iterations)
-				el = contractEl(_el)
-			else
-				contractEl(_el)
-		el.querySelectorAll('*').forEach((subEl) => {subEl.removeAttribute('xmlns')})
-	console.log('NSContraction on ', el)
-		return el;
-	}
-
-	/*
-	window.addEventListener('DOMContentLoaded', () => {
-		console.log('window captured by DOMContentLoaded')
-		NSContraction();
-	}, true);
-	*/
-
-	const NSExpansion = (target = document.documentElement, collectedNSDefinitions) => {	// Retourne un clone de l'élément en XML standard
-		if(Element.prototype.isPrototypeOf(target)) {
-			if(!collectedNSDefinitions) {
-				collectedNSDefinitions = collectNSDefinitions(target, false);
-				recursion = false;
-				target = target.cloneNode(true);
-			}
-			else
-				recursion = true;
-			
-			var attributesNodes = [], newAttributes = {}
-			
-			for(const attr of target.attributes)
-				attributesNodes.push(attr)
-			for(const attr of attributesNodes) {
-				var ann = attr.nodeName;
-				if(ann.indexOf('-') > 0) {
-					var prefix = ann.substring(0, ann.indexOf('-'))
-					var tn = ann.substring(ann.indexOf('-') + 1)
-					if(prefix != 'xmlns') {
-						if(typeof collectedNSDefinitions['xmlns:'+prefix] != undefined)	// On ne touche que aux prefixed-attributes concernés par les NS
-							newAttributes[prefix + ':' + tn] = attr.nodeValue;
-						else
-							newAttributes[ann] = attr.nodeValue;	// prefixed-attribute tel quel
-					}
-					else {
-						if(ann == 'xmlns-0')
-							newAttributes['xmlns'] = attr.nodeValue;		// On garde xmlns
-						else
-							newAttributes['xmlns:' + tn] = attr.nodeValue;		// On garde xmlns:tn
-						target.removeAttribute(ann);	// On vire les xmlns-contracted et les xmlns-0
-					}
-				}
-				else
-					newAttributes[ann] = attr.nodeValue;	// non_prefixed_attribute tel quel
-			}
-			var nn = target.tagName;
-			if(nn.indexOf('-') > 0) {
-				var prefix = nn.substring(0, nn.indexOf('-'))
-				if(typeof collectedNSDefinitions['xmlns:' + prefix] != undefined) {
-					var tn = nn.substring(nn.indexOf('-') + 1)
-					target = recreateElement(target, prefix + ':' + tn, true);	// true pour avoidAttributesCopy
-				}
-			}
-			if(!recursion)
-				for(const nsDef in collectedNSDefinitions)
-					newAttributes[nsDef] = collectedNSDefinitions[nsDef];
-			
-			for(const attrName in newAttributes)
-				target.setAttribute(attrName, newAttributes[attrName]);
-			
-			for(const el of target.children)
-				NSExpansion(el, collectedNSDefinitions)
-
-			return target;	// On retourne le clone.
-		}
-	}
-
-	const nativeOuterHTMLGetter = Object.getOwnPropertyDescriptor(Element.prototype, 'outerHTML').get;
-
-	Object.defineProperty(Element.prototype, 'outerHTML', {get : function() {	// TODO : PEUT ETRE INUTILE. A VOIR APRES defineProperty 'namespaceURI'
-		this.querySelectorAll('*').forEach((el) => {
-			if(el.getAttribute('xmlns') == el.getAttribute('xmlns-0'))
-				el.removeAttribute('xmlns');
-		})
-		if(this.getAttribute('xmlns') == this.getAttribute('xmlns-0'))
-			this.removeAttribute('xmlns-0');	// keeping xmlns on first for XML consistancy.
-		return nativeOuterHTMLGetter.call(this);	// outerHTML getter = native.
-	} })
-
-	Object.defineProperty(Element.prototype, 'outerXML', {get : function() {	// Return Clone
-		return NSExpansion(this).outerHTML;	// outerHTML getter = almost native. (see just bellow)
-	} })
-
-	Object.defineProperty(Element.prototype, 'DOMPath', {get : function () {	 // From https://gist.github.com/karlgroves/7544592
-		var stack = [], el = this;
-		while (el.parentNode != null) {
-	//console.log(el.nodeName);
-			var sibCount = 0;
-			var sibIndex = 0;
-			for ( var i = 0; i < el.parentNode.childNodes.length; i++ ) {
-				var sib = el.parentNode.childNodes[i];
-				if ( sib.nodeName == el.nodeName ) {
-					if ( sib === el ) {
-						sibIndex = sibCount;
-						break;
-					}
-					sibCount++;
-				}
-			}
-			if(el.hasAttribute('id') && el.id != '')
-				stack.unshift(el.nodeName.toLowerCase() + '#' + el.id);
-			else if ( sibCount > 1 )
-				stack.unshift(el.nodeName.toLowerCase() + ':eq(' + sibIndex + ')');
-			else
-				stack.unshift(el.nodeName.toLowerCase());
-			el = el.parentNode;
-		}
-		return stack.slice(1).join(' > '); // removes the html element + return string
-	} })
-
-
-// 2. XPath EVALUATION SIMPLIFIED
-// ==============================
-
-	const nativeEvaluate = Object.getOwnPropertyDescriptor(Document.prototype, 'evaluate').value;
-	Object.defineProperty(Document.prototype, 'evaluate', {
-		value: function(xpathExp, n = document.documentElement, NSResolver = null, resultType = null, result = null) {
-		const parser = new DOMParser();
-		if(NSResolver !== null)
-			var doc = NSExpansion(n)
-		else {
-			//NSResolver = function(p){return 'http://www.w3.org/1999/xhtml';}
-			var doc = parser.parseFromString('<html></html>', 'text/html');
-			// prevent annoying parser auto correction that move unknownHTMLElement from head to body.
-			// Due to insertion politic ?
-			doc.head.innerHTML = this.head.innerHTML;
-			doc.body.innerHTML = this.body.innerHTML;
-			doc.documentElement.querySelectorAll('*').forEach((el) => {
-				el.removeAttribute('xmlns')
-			});
-			doc.documentElement.removeAttribute('xmlns');
-		}
-		if(resultType == null)
-			resultType = XPathResult.ANY_TYPE
-
-		if(n == document.documentElement)
-			n = doc.documentElement;
-		else
-			n = doc.querySelector(n.DOMPath);	// because Firefox needs n to belong to doc. And it's logical
-		
-		return nativeEvaluate.call(doc, xpathExp, n, NSResolver, resultType, result);	// TODO rehabiliter n
-	}
-	})
-
-	const QueryXPath = function (exp) {
-		var xpe = document.evaluate(exp, this), r = xpe.iterateNext();
-		if(r instanceof Element)
-			return document.querySelector(r.DOMPath);
-		return r
-	}
-	const QueryXPathAll = function (exp) {
-		var xpe = document.evaluate(exp, this), result = [];
-		while (n = xpe.iterateNext())
-			if(n instanceof Element)
-				result.push(document.querySelector(n.DOMPath));
-			else
-				result.push(n);
-		return result;
-	}
-
-	Element.prototype.QueryXPath = function(exp) { return QueryXPath.call(this, exp); };
-	Document.prototype.QueryXPath = function(exp) { return QueryXPath.call(this.documentElement, exp); };
-	Element.prototype.QueryXPathAll = function(exp) { return QueryXPathAll.call(this, exp); };
-	Document.prototype.QueryXPathAll = function(exp) { return QueryXPathAll.call(this.documentElement, exp); };
 
 // 3. DESIGN LAYER
 // ===============
@@ -717,6 +393,11 @@ const ddxhtmlImplementation = (supportedDesignSystems) => {
 	});
 
 	NSContraction();
+	if(designSystem['defaultCSS']) {
+		const defaultStyle = document.createElement('style');
+		defaultStyle.appendChild(document.createTextNode(designSystem['defaultCSS']));
+		document.head.prepend(defaultStyle)
+	}
 	// Start observing the target node for configured mutations
 	observer.observe(document, {
 		attributes: true,
@@ -726,14 +407,14 @@ const ddxhtmlImplementation = (supportedDesignSystems) => {
 	});	// + attributeOldValue + characterData + characterDataOldValue
 };
 
-function forcePattern(field) {
-	var R = new RegExp(field.getAttribute('pattern'));
-	if(typeof field._lastValidValue == 'undefined')
-		field._lastValidValue = field.defaultValue;
-	if(R.test(field.value))
-		field._lastValidValue = field.value;
+function forcePattern(ev) {
+	const R = new RegExp(ev.target.getAttribute('pattern'));
+	if(typeof ev.target._lastValidValue == 'undefined')
+		ev.target._lastValidValue = ev.target.defaultValue;
+	if(R.test(ev.target.value))
+		ev.target._lastValidValue = ev.target.value;
 	else
-		field.value = field._lastValidValue;
+		ev.target.value = ev.target._lastValidValue;
 }
 
 ddxhtmlImplementation({
@@ -742,15 +423,15 @@ ddxhtmlImplementation({
 			'text/x-handlebars': (source) => {return Handlebars.compile(source);}
 		},
 		editors: {
-			'number' : (initialValue = '') => {return '<input part="editor" value="'+initialValue+'" pattern="^\d*\.?\d*$" inputmode="decimal" type="text" />';}
+			// ^[0-9]+([\.,][0-9]*)?$		=> . et ,
+			'number' : (initialValue = '') => {return '<input part="editor" value="'+initialValue+'" pattern="^[0-9]+([\.][0-9]*)?$" inputmode="decimal" type="text" />';}
 		},
 		defaultBehaviors: (el) => {
 			if(el.hasAttribute('edit-as')) {
 				//var editorType = el.getAttribute('edit-as')
 				var fieldWithPattern = el.shadowRoot.querySelector('[pattern]')
 				if(fieldWithPattern)
-					forcePattern(fieldWithPattern);
-				
+					fieldWithPattern.addEventListener('input', forcePattern)
 			}
 			svg = el.shadowRoot.querySelector('svg[data-auto-viewbox]');
 			if(svg) {
@@ -760,7 +441,21 @@ ddxhtmlImplementation({
 				console.warn(svg.getAttribute('viewBox'))
 			}
 		},
-		defaultCSS: ``,
+		defaultCSS: `
+::part(design), ::part(editor) {
+	display: inline-block;
+}
+
+*[edit-as]::part(design) {
+	display: none;
+}`,
 		defaultXDSS: ``
 	}
 });
+
+/*
+window.addEventListener('DOMContentLoaded', () => {
+	console.log('window captured by DOMContentLoaded')
+	NSContraction();
+}, true);
+*/
