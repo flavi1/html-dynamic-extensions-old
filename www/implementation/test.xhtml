@@ -13,7 +13,34 @@
 			<var>MA VALEUR</var>
 	   </datas></instance>
 	</model>
-	
+		
+	<model id="fruits">
+	   <instance><datas xmlns="">
+			<fruit>
+				<name>Lemon</name>
+				<color>Yellow</color>
+			</fruit>
+			<fruit>
+				<name>Orange</name>
+				<color>Orange</color>
+			</fruit>
+			<fruit>
+				<name>Banana</name>
+				<color>Yellow</color>
+			</fruit>
+	   </datas></instance>
+	</model>
+
+	<model>
+	   <instance><datas xmlns="">
+			<person1>
+				<first_name>John</first_name>
+				<last_name>Doe</last_name>
+				<email>john.doe@nowhere.com</email>
+			</person1>
+	   </datas></instance>
+	</model>
+
   </head>
   <body>
 	  
@@ -74,7 +101,7 @@
 	<span>My value :</span> {{value}}
 </template>
 
-<div id="fruits" each-item="fruit" >
+<div model="fruits" each-item="fruit" >
 	<strong ref="name" />
 	Color : <span ref="color" /><br />
 </div>
@@ -121,7 +148,7 @@ document.body.innerHTML += `<span ref="var_test">
 
 
 document.body.innerHTML += `
-<div group-ref="person1">
+<div model="persons" group-ref="person1">
 	<span ref="first_name" />
 	<span ref="last_name" />
 	<span ref="email" />
