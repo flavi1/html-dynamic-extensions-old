@@ -1,3 +1,8 @@
+### W3C COMMUNITY GROUP :
+
+[https://www.w3.org/community/html-dynamic-extensions/](https://www.w3.org/community/html-dynamic-extensions/)
+
+
 ### IMPLEMENTATION DEMO HERE : (Proof of concept, work in progress)
 
 [https://flavi1.github.io/html-dynamic-extensions/www/implementation/test.xhtml](https://flavi1.github.io/html-dynamic-extensions/www/implementation/test.xhtml)
