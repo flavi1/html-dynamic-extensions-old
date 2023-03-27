@@ -15,7 +15,7 @@ const ddxhtmlImplementation = (supportedDesignSystems) => {
 			
 	}
 
-// 3. DESIGN LAYER
+// 1. DESIGN LAYER
 // ===============
 
 	document.designSheets = [];
@@ -175,54 +175,109 @@ const ddxhtmlImplementation = (supportedDesignSystems) => {
 		document.dispatchEvent(event);
 	}
 
-// 4. DATA LAYER
+// 2. DATA LAYER
 // =============
 
-	const getReferencedDataElement = (el) => {
+	//const getReferencedDataElement = (el, byAttr = 'ref') => {
+	window.getReferencedDataElement = (el, byAttr = 'ref') => {
 			// parents group-by ?
 			// parents each-item + at attribute ?
 			// model ? instance ?
 		
-		var XPathExp = '//';
+		var XPathExp = '/';
 		
 		var model = null;
 		if(el.closest('[model]'))
-			model = getElementById(el.closest('[model]').getAttribute('model'))
+			model = document.getElementById(el.closest('[model]').getAttribute('model'))
 		if(!model)
 			model = document.querySelector('head model');
 	//console.log('model', model)
-		for(upperEl of collectAncestors(el)) {
+
+		for(upperEl of collectAncestors(el, true))
+			if(upperEl.getAttribute('each-item') || upperEl.getAttribute('group-by') || upperEl.getAttribute('ref')){
 			//console.log('XPATH UPPER', upperEl)
+			
+			if(upperEl.getAttribute('at'))
+				XPathExp += '['+upperEl.getAttribute('at')+']/';
+			else
+				XPathExp += '/'
+			if(upperEl.getAttribute('each-item'))
+				XPathExp += upperEl.getAttribute('each-item');
 			if(upperEl.getAttribute('group-by'))
-				XPathExp += upperEl.getAttribute('group-by')+'/';
+				XPathExp += upperEl.getAttribute('group-by');
+			if(upperEl.getAttribute('ref'))
+				XPathExp += upperEl.getAttribute('ref');
 		}
-		XPathExp += el.getAttribute('ref')
-		if(el.getAttribute('at'))
-			XPathExp += '[' + el.getAttribute('at') + ']';
+		console.log(XPathExp);
 /*
 		if(model.QueryXPath(XPathExp)) {
 			console.log('XPATH EXP : ', XPathExp, 'for', el)
 			console.log('XPATH RESULT : ', model.QueryXPath(XPathExp));
 		}
 */
+		if(byAttr == 'each-item')
+			return model.QueryXPathAll(XPathExp);
 		return model.QueryXPath(XPathExp);
 	}
 
-
-// 5. DYNAMIC BEHAVIOR
+// 3. DYNAMIC BEHAVIOR
 // ===================
+	
+	var initialDOMContents = {}
+	
+	Object.defineProperty(Element.prototype, 'initialDOM', {
+		get : function() {
+			if(typeof initialDOMContents[this.DOMPath] != 'undefined')
+				return initialDOMContents[this.DOMPath];
+		}
+	})
 
 	const refreshContent = function() {
 		if(!this.getAttribute('ref') && !this.getAttribute('each-item') && !this.getAttribute('render-by'))
 			return;
-		if(!this.initialDOM) {
-			this.initialDOM = this.innerHTML;
+		if(typeof initialDOMContents[this.DOMPath] == 'undefined') {
+			initialDOMContents[this.DOMPath] = this.innerHTML;
+			console.log('this.initialDOM = ', this.initialDOM)
 			this.querySelectorAll('itemset, actions').forEach((settingEl) => {
 				addElementSettings(settingEl);
 			})
 		}
-		if(this.getAttribute('each-item'))	// TODO
+		else
+			if(this.getAttribute('each-item'))
+				return;	// this.initialDOM already set on each-item => means each-item content already overriden.
+		if(this.getAttribute('each-item')) {
+			
+			console.log('EACH-ITEM on',this)
+			
+			var items = getReferencedDataElement(this, 'each-item')
+
+			
+			var newItemTpl = document.createElement('div'), closestRefsOrGRefs = [], innerHTML = '', closestRefsOrGRefs = [];
+			newItemTpl.innerHTML = this.initialDOM;
+			newItemTpl.querySelectorAll(':scope [ref], :scope [group-ref]').forEach((el) => {
+				closestRefsOrGRefs.push(el.closest('[ref], [group-ref]'));
+			});
+			for (var index = 0; index < items.length; index++) {
+				for(const el of closestRefsOrGRefs)
+					if(el.setAttribute('at', index + 1))
+				console.log(newItemTpl.innerHTML)
+				innerHTML += newItemTpl.innerHTML
+			}
+			observationEnabled = false;
+			//if(innerHTML.trim() != innerHTML.trim()) {
+				console.warn(innerHTML)
+				this.innerHTML = innerHTML;
+			//}
+			observationEnabled = true;
+			
+			//observationEnabled = true;
+			// + main flow sur les enfants!
+			console.log(innerHTML)
+			console.log(this)
+
 			return;
+		}
+		
 		var value = null;
 		var result = '';
 		if(this.getAttribute('ref')) {
@@ -293,9 +348,7 @@ const ddxhtmlImplementation = (supportedDesignSystems) => {
 		console.log(el.innerDOMSettings)
 	}
 
-
-
-// 6. MUTATION OBERVER ( = THE CORE)
+// 4. MUTATION OBERVER ( = THE CORE)
 // =================================
 
 	var observationEnabled = true;
@@ -456,6 +509,5 @@ ddxhtmlImplementation({
 /*
 window.addEventListener('DOMContentLoaded', () => {
 	console.log('window captured by DOMContentLoaded')
-	NSContraction();
 }, true);
 */
