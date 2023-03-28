@@ -62,7 +62,7 @@ const ddxhtmlImplementation = (supportedDesignSystems) => {
 		
 		if(el.hasAttribute('edit-as')) {
 			editorType = el.getAttribute('edit-as');
-			var refEl = getReferencedDataElement(el), initialValue = '';
+			var refEl = getModel(el).QueryXPath(makeXPathExp(el)), initialValue = '';
 			if(refEl && refEl instanceof Element)
 				initialValue = refEl.innerHTML;
 			
@@ -84,7 +84,7 @@ const ddxhtmlImplementation = (supportedDesignSystems) => {
 		if(input) {
 			var listener = (ev) => {
 				console.log('VALUE', ev.target.value)
-				var refEl = getReferencedDataElement(el)
+				var refEl = getModel(el).QueryXPath(makeXPathExp(el))
 				if(refEl && refEl instanceof Element && refEl.innerHTML !== ev.target.value)
 					refEl.innerXML = ev.target.value;
 					console.log(refEl)
@@ -177,47 +177,51 @@ const ddxhtmlImplementation = (supportedDesignSystems) => {
 
 // 2. DATA LAYER
 // =============
-
-	//const getReferencedDataElement = (el, byAttr = 'ref') => {
-	window.getReferencedDataElement = (el, byAttr = 'ref') => {
-			// parents group-by ?
-			// parents each-item + at attribute ?
-			// model ? instance ?
-		
-		var XPathExp = '/';
-		
-		var model = null;
+	
+	const getModel = (el) => {
+		var model = null
 		if(el.closest('[model]'))
 			model = document.getElementById(el.closest('[model]').getAttribute('model'))
 		if(!model)
-			model = document.querySelector('head model');
-	//console.log('model', model)
+			return document.querySelector('head model');
+		return model;
+	}
+	
+	const makeXPathExp = (el) => {
+		var XPathExp = '/';
+		if(el.getAttribute('ref'))
+			targetAttr = 'ref'
+		else if(el.getAttribute('set'))
+			targetAttr = 'set'
+		else if(el.getAttribute('shown'))
+			targetAttr = 'shown'
 
 		for(upperEl of collectAncestors(el, true))
-			if(upperEl.getAttribute('each-item') || upperEl.getAttribute('group-by') || upperEl.getAttribute('ref')){
-			//console.log('XPATH UPPER', upperEl)
-			
-			if(upperEl.getAttribute('at'))
-				XPathExp += '['+upperEl.getAttribute('at')+']/';
-			else
-				XPathExp += '/'
-			if(upperEl.getAttribute('each-item'))
-				XPathExp += upperEl.getAttribute('each-item');
-			if(upperEl.getAttribute('group-by'))
-				XPathExp += upperEl.getAttribute('group-by');
-			if(upperEl.getAttribute('ref'))
-				XPathExp += upperEl.getAttribute('ref');
-		}
-		console.log(XPathExp);
-/*
-		if(model.QueryXPath(XPathExp)) {
-			console.log('XPATH EXP : ', XPathExp, 'for', el)
-			console.log('XPATH RESULT : ', model.QueryXPath(XPathExp));
-		}
-*/
+			if(upperEl.getAttribute('each-item') || upperEl.getAttribute('group-by') || upperEl.getAttribute(targetAttr) ){
+				if(upperEl.getAttribute('at'))
+					XPathExp += '['+upperEl.getAttribute('at')+']/';
+				else
+					XPathExp += '/'
+				if(upperEl.getAttribute('each-item'))
+					XPathExp += upperEl.getAttribute('each-item');
+				if(upperEl.getAttribute('group-by'))
+					XPathExp += upperEl.getAttribute('group-by');
+				if(upperEl.getAttribute(targetAttr))
+					XPathExp += upperEl.getAttribute(targetAttr);
+			}
+		return XPathExp;
+	}
+	
+	const getReferencedDataElement = (el, byAttr = 'ref') => {
+
+		var model = getModel(el),
+			XPathExp = makeXPathExp(el)
+
+		if(byAttr == 'shown')
+			return document.evaluate(XPathExp, model).booleanValue;
 		if(byAttr == 'each-item')
-			return model.QueryXPathAll(XPathExp);
-		return model.QueryXPath(XPathExp);
+			return model.QueryXPathAll(makeXPathExp(el));
+		return model.QueryXPath(makeXPathExp(el));
 	}
 
 // 3. DYNAMIC BEHAVIOR
@@ -232,27 +236,29 @@ const ddxhtmlImplementation = (supportedDesignSystems) => {
 		}
 	})
 
-	const refreshContent = function() {
+	const refreshContent = function(preventObserver = false) {
+		if(!this.isConnected)
+			return;
 		if(!this.getAttribute('ref') && !this.getAttribute('each-item') && !this.getAttribute('render-by'))
 			return;
 		if(typeof initialDOMContents[this.DOMPath] == 'undefined') {
 			initialDOMContents[this.DOMPath] = this.innerHTML;
-			console.log('this.initialDOM = ', this.initialDOM)
+console.log('this.initialDOM = ', this.initialDOM)
 			this.querySelectorAll('itemset, actions').forEach((settingEl) => {
 				addElementSettings(settingEl);
 			})
 		}
-		else
-			if(this.getAttribute('each-item'))
-				return;	// this.initialDOM already set on each-item => means each-item content already overriden.
+		
+		var value = null;
+		var result = '';
+		
 		if(this.getAttribute('each-item')) {
 			
-			console.log('EACH-ITEM on',this)
+console.log('EACH-ITEM on',this)
 			
-			var items = getReferencedDataElement(this, 'each-item')
-
+			var items = getModel(this).QueryXPathAll(makeXPathExp(this))
 			
-			var newItemTpl = document.createElement('div'), closestRefsOrGRefs = [], innerHTML = '', closestRefsOrGRefs = [];
+			var newItemTpl = document.createElement('div'), closestRefsOrGRefs = [], closestRefsOrGRefs = [];
 			newItemTpl.innerHTML = this.initialDOM;
 			newItemTpl.querySelectorAll(':scope [ref], :scope [group-ref]').forEach((el) => {
 				closestRefsOrGRefs.push(el.closest('[ref], [group-ref]'));
@@ -261,35 +267,19 @@ const ddxhtmlImplementation = (supportedDesignSystems) => {
 				for(const el of closestRefsOrGRefs)
 					if(el.setAttribute('at', index + 1))
 				console.log(newItemTpl.innerHTML)
-				innerHTML += newItemTpl.innerHTML
+				result += newItemTpl.innerHTML
 			}
-			observationEnabled = false;
-			//if(innerHTML.trim() != innerHTML.trim()) {
-				console.warn(innerHTML)
-				this.innerHTML = innerHTML;
-			//}
-			observationEnabled = true;
-			
-			//observationEnabled = true;
-			// + main flow sur les enfants!
-			console.log(innerHTML)
-			console.log(this)
-
-			return;
 		}
-		
-		var value = null;
-		var result = '';
-		if(this.getAttribute('ref')) {
-			ReferencedEl = getReferencedDataElement(this);
+		else if(this.getAttribute('ref')) {
+			ReferencedEl = getModel(this).QueryXPath(makeXPathExp(this));
 			if(ReferencedEl)
 				value = ReferencedEl.innerXML;
 			else
 				value = this.innerXML;
 			// + sinon : value = this.innerHTML;
 		}
-		else
-			value = this.innerHTML;
+//		else
+//			value = this.innerHTML;
 		
 		if(this.getAttribute('render-by')) {
 			const tid = this.getAttribute('render-by')
@@ -305,15 +295,19 @@ const ddxhtmlImplementation = (supportedDesignSystems) => {
 		}
 		else if(this.innerDOMSettings && this.innerDOMSettings.itemset && typeof this.innerDOMSettings.itemset[value] != 'undefined')
 			result = this.innerDOMSettings.itemset[value];
-		else
+		else if(this.getAttribute('ref'))
 			result = value;
 		
 		if(result == null)
 			result = '';
 		if(this.innerHTML.trim() !== result.trim()) {
-			observationEnabled = false;
+			if(!preventObserver) pauseObserver();
 				this.innerXML = result;
-			observationEnabled = true;
+				this.querySelectorAll('*').forEach((el) => {
+					el.refreshContent(true);
+				})
+			if(!preventObserver) playObserver();
+			
 			this.refreshDesign();		// TODO : Semble ne pas fonctionner, ou pas immédiatement...
 		}
 		
@@ -341,9 +335,9 @@ const ddxhtmlImplementation = (supportedDesignSystems) => {
 				// TODO : prepare settings + addEventListeners.
 			break;
 		}
-		observationEnabled = false;
+		pauseObserver();
 			settingEl.remove(); // we doesn't need it anymore
-		observationEnabled = true;
+		playObserver()
 		
 		console.log(el.innerDOMSettings)
 	}
@@ -351,7 +345,7 @@ const ddxhtmlImplementation = (supportedDesignSystems) => {
 // 4. MUTATION OBERVER ( = THE CORE)
 // =================================
 
-	var observationEnabled = true;
+//var observationEnabled = true;
 
 	const nodesCallbacks = {
 		'link[rel="designsheet"]' : (el, action) => {
@@ -365,7 +359,11 @@ const ddxhtmlImplementation = (supportedDesignSystems) => {
 		'head model, head model *' : (el, action) => {
 			console.log(action + ' data layer', el)
 			if(action == 'change')
-				document.querySelectorAll('body *[ref], body *[each-item], body *[render-by]').forEach((el) => {el.refreshContent();})
+				document.querySelectorAll('body *[ref], body *[each-item], body *[render-by], body *[shown]').forEach((el) => {
+					if(el.getAttribute('shown'))
+						el.hidden = !document.evaluate(makeXPathExp(el)).booleanValue;
+					el.refreshContent();
+				})
 		},
 		'template' : (el, action) => {
 			document.querySelectorAll('body [render-by="' + el.id + '"]').forEach((elToRender) => {
@@ -380,6 +378,8 @@ const ddxhtmlImplementation = (supportedDesignSystems) => {
 					addElementSettings(this);
 				else if(this.getAttribute('ref') || this.getAttribute('each-item') || this.getAttribute('render-by'))
 					this.refreshContent();
+				if(this.getAttribute('shown'))
+					this.hidden = !document.evaluate(makeXPathExp(this)).booleanValue;		//!getReferencedDataElement(this, 'shown');
 			}
 			
 			mainFlow.call(el);
@@ -398,8 +398,8 @@ const ddxhtmlImplementation = (supportedDesignSystems) => {
 
 	// Create an observer instance linked to the callback function
 	const observer = new MutationObserver((mutationList, observer) => {
-		if(!observationEnabled)
-			return;
+//		if(!observationEnabled)
+//			return;
 		var action = '', nodes = [], nodesCB = [], lastAddedNode = null;
 		
 		mutationList.forEach((mutation) => {
@@ -444,20 +444,116 @@ const ddxhtmlImplementation = (supportedDesignSystems) => {
 		})
 	console.groupEnd();
 	});
+	
+	const observeOneTime = (el = document) => {
+		initElements = []
+		document.querySelectorAll('*').forEach((el) => {
+			initElements.push(el)
+		})
+		for(const el of initElements)
+			Object.keys(nodesCallbacks).forEach(sel => {
+				if(el.nodeType == Node.ELEMENT_NODE && el.matches instanceof Function && el.matches(sel))
+					nodesCallbacks[sel](el, 'add');
+			})
+	}
+	
+	const playObserver = () => {
+		observer.observe(document, {
+			attributes: true,
+			childList: true,
+			subtree: true,
+			attributeFilter: Object.keys(attributesChangedCallbacks)
+		});	// + attributeOldValue + characterData + characterDataOldValue
+	}
+	
+	const pauseObserver = () => {
+		observer.disconnect();
+	}
 
-	NSContraction();
 	if(designSystem['defaultCSS']) {
 		const defaultStyle = document.createElement('style');
 		defaultStyle.appendChild(document.createTextNode(designSystem['defaultCSS']));
 		document.head.prepend(defaultStyle)
 	}
-	// Start observing the target node for configured mutations
-	observer.observe(document, {
-		attributes: true,
-		childList: true,
-		subtree: true,
-		attributeFilter: Object.keys(attributesChangedCallbacks)
-	});	// + attributeOldValue + characterData + characterDataOldValue
+	
+	const hookAnchorClicked = (a) => {
+		console.log('a[target="_hooks"] clicked !')
+		console.log(a, a.getAttribute('href'));
+	}
+
+	const triggerElementClicked = (t) => {
+		actions = [];
+		console.log('trigger Element clicked')
+		console.log(t);
+		
+		var oneAction = {
+			'ref' : t.getAttribute('ref'),		// ref, nodeset, ou les deux?
+			'at' : t.getAttribute('at'),
+			'nodeset' : t.getAttribute('nodeset'),
+			'value' : t.getAttribute('value')
+		}
+		for(const attr of t.attributes)
+			if(['set', 'sendby', 'action'].includes(attr.nodeName)) {
+				if(attr.nodeName == 'set') {
+					oneAction.type = 'set'
+					oneAction.ref = attr.nodeValue
+				}
+				else if(attr.nodeName == 'sendby') {
+					oneAction.type = 'send'
+					oneAction.by = attr.nodeValue
+				}
+				else if(attr.nodeName == 'action' && ['delete', 'reset'].includes(attr.nodeValue) )
+					oneAction.type = attr.nodeValue
+			}
+		if(oneAction.type)
+			actions.push(oneAction)
+		const manyActions = t.querySelector('actions > *');
+		if(!oneAction.type && manyActions)
+				manyActions.forEach((action) => {
+					if(['insert', 'set', 'send', 'delete', 'reset'].includes(action.nodeName))
+						actions.push({
+							'type' : action.nodeName,
+							'value' : action.innerHTML,
+							'nodeset' : action.getAttribute('nodeset'),
+							'position' : action.getAttribute('position'),
+							'at' : action.getAttribute('at'),
+							'by' : action.getAttribute('by'),	// (send by submission id)
+							'ref' : action.getAttribute('ref')
+						});
+				})
+		for(const act of actions)
+			switch (act.type){
+				case 'set':
+					var exp = makeXPathExp(t)
+					console.log(exp)
+					var target = getModel(t).QueryXPath(exp)
+					target.innerHTML = act.value
+				break;
+			}
+		
+	}
+	
+	window.addEventListener('DOMContentLoaded', () => {
+		console.log('window captured by DOMContentLoaded')
+		
+		NSContraction();
+		
+		observeOneTime();
+		playObserver();
+		
+		document.body.addEventListener("click", (ev) => {
+			if (ev.target.nodeName === 't' && !ev.defaultPrevented) {
+				// EXPECTED BEHAVIOR
+				triggerElementClicked(ev.target);
+			}
+			if (ev.target.nodeName === 'a' && ev.target.getAttribute('target') == '_hooks' && !ev.defaultPrevented) {
+				// EXPECTED BEHAVIOR
+				hookAnchorClicked(ev.target)
+				ev.preventDefault();
+			}
+		});
+	}, true);
+	
 };
 
 function forcePattern(ev) {
@@ -501,13 +597,34 @@ ddxhtmlImplementation({
 
 *[edit-as]::part(design) {
 	display: none;
-}`,
+}
+
+t > actions {
+	display: none;
+}
+
+t {
+    appearance: button;
+    overflow: visible;
+    text-transform: none;
+    border: 0;
+    border-radius: 0.25rem;
+    background: buttonface;
+    font-family: system-ui, sans-serif;
+    font-size: 1rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    text-decoration: none;
+    padding: 0.25rem 0.5rem;
+    margin: 0.25rem;
+    cursor: pointer;
+    border-width: 1px;
+    border-style: outset;
+    border-color: buttonborder;
+    display: inline-block;
+    text-align: center;
+}
+`,
 		defaultXDSS: ``
 	}
 });
-
-/*
-window.addEventListener('DOMContentLoaded', () => {
-	console.log('window captured by DOMContentLoaded')
-}, true);
-*/
