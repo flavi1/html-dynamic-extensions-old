@@ -1065,35 +1065,7 @@ if(svg) {
 	<h3>An additionnal possible use case</h3>
 	<p>Some basic standard helpers will be added to handlebars to perform some minimal logic test from the templates.</p>
 	<p>Possible repository candidate : <a href="https://github.com/helpers/handlebars-helpers">https://github.com/helpers/handlebars-helpers</a></p>
-	<p>For example {{#begin_with var "string"}}.</p>
-	<p>Considering an XDSS :</p>
-	
 
-<pre class="xml">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;
-&lt;design xmlns=&quot;https://www.w3.org/ns/design-system&quot; for=&quot;http://www.w3.org/1999/xhtml&quot;&gt;
-	&lt;element tagname=&quot;video&quot;&gt;
-	&lt;style-sensitivity&gt;
-		&lt;property name=&quot;width&quot; /&gt;
-		&lt;property name=&quot;height&quot; /&gt;
-	&lt;/style-sensitivity&gt;
-		&lt;description&gt;Extends video elements&lt;/description&gt;
-		&lt;template type=&quot;text/x-handlebars&quot;&gt;&lt;![CDATA[
-			{{#if (begin_with attributes.src &quot;https://youtube.com&quot;)}}
-				&lt;object width=&quot;{{style.width}}&quot; height=&quot;{{style.height}}&quot;&gt;
-					&lt;param name=&quot;movie&quot; value=&quot;{{attributes.src}}&quot;&gt;&lt;/param&gt;
-					&lt;param name=&quot;allowFullScreen&quot; value=&quot;true&quot;&gt;&lt;/param&gt;
-				&lt;/object&gt;
-			{{else}}
-				&lt;video src=&quot;{{attributes.src}}&quot; /&gt;
-			{{/if}}
-		]]&gt;&lt;/template&gt;
-	&lt;/element&gt;
-&lt;/design&gt;
-</pre>
-<p>(youtube&#169; is a trade mark.)</p>
-
-<p class="todo">(todo : fix it with correct video tag usage + use this example to explain XDSS design element cascade inheritance)</p>	
-	
 	
 	
 	<h2>TODO</h2>
@@ -1101,7 +1073,7 @@ if(svg) {
 	
 	
 	<ul>
-		<li>"t" : add an action to close/open dialogs modals.</li>
+		<li>"t" : add an action to close/open dialogs modals?</li>
 		<li>Using bind attribute as ref attribute replacement possibility</li>
 		<li>multiple models / instances</li>
 		<li>Editor stack : js usage : add or override an editor.</li>
